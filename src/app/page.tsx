@@ -236,33 +236,20 @@ function QuickTask({ task }: { task: typeof QUICK_TASKS[number] }) {
 export default function Page() {
   const router = useRouter()
 
+  // Redirect already-logged-in users straight to the dashboard
+  useEffect(() => {
+    import('@/lib/supabase/client').then(({ createClient }) => {
+      createClient().auth.getUser().then(({ data: { user } }) => {
+        if (user) router.replace('/dashboard')
+      })
+    })
+  }, [router])
+
   // Lenis smooth scroll
   useEffect(() => {
     const lenis = new Lenis({ duration: 1.2, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
     const raf = (time: number) => { lenis.raf(time); requestAnimationFrame(raf) }
     requestAnimationFrame(raf)
-
-    // Re-init cursor after Lenis mounts (Lenis can reset RAF timing)
-    const d = document.getElementById('cur-dot')
-    const r = document.getElementById('cur-ring')
-    if (d && r) {
-      let mx = -200, my = -200, rx = -200, ry = -200
-      const onMove = (e: MouseEvent) => { mx = e.clientX; my = e.clientY }
-      window.addEventListener('mousemove', onMove)
-      let curRaf: number
-      const tick = () => {
-        d.style.transform = `translate(${mx}px,${my}px)`
-        rx += (mx - rx) * 0.13; ry += (my - ry) * 0.13
-        r.style.transform = `translate(${rx}px,${ry}px)`
-        curRaf = requestAnimationFrame(tick)
-      }
-      curRaf = requestAnimationFrame(tick)
-      return () => {
-        lenis.destroy()
-        window.removeEventListener('mousemove', onMove)
-        cancelAnimationFrame(curRaf)
-      }
-    }
 
     return () => lenis.destroy()
   }, [])
@@ -290,6 +277,24 @@ export default function Page() {
 
   return (
     <>
+      {/* ── Cubes fullscreen background ── */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        <Cubes
+          gridSize={12}
+          maxAngle={35}
+          radius={4}
+          borderStyle="1px solid rgba(26,23,20,0.10)"
+          faceColor="#EAE6E0"
+          rippleColor="#1A1714"
+          autoAnimate={true}
+          rippleOnClick={true}
+          rippleSpeed={2}
+          listenOnWindow={true}
+          style={{ width: '100%', height: '100%', aspectRatio: 'auto' }}
+        />
+      </div>
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
       <div className="layout">
         {/* ── Sidebar ──────────────────────────────────── */}
         <aside className="sidebar">
@@ -321,19 +326,27 @@ export default function Page() {
         {/* ── Main ─────────────────────────────────────── */}
         <div className="content">
 
-          {/* Cubes hero */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px 0', borderBottom: '1px solid var(--line)' }}>
-            <Cubes
-              gridSize={8}
-              maxAngle={35}
-              radius={3}
-              borderStyle="1px solid rgba(26,23,20,0.12)"
-              faceColor="#EAE6E0"
-              rippleColor="#1A1714"
-              autoAnimate={true}
-              rippleOnClick={true}
-              rippleSpeed={2}
-            />
+          {/* ── Hero — no background, cubes show through from fixed layer ── */}
+          <div style={{
+            padding: '80px 40px 72px',
+            minHeight: '60vh',
+            borderBottom: '1px solid rgba(26,23,20,0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+            gap: 24,
+          }}>
+            <p style={{ fontFamily: 'var(--font-head)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Codeine</p>
+            <h1 style={{ fontFamily: 'var(--font-head)', fontSize: 'clamp(36px, 5vw, 72px)', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.0, color: 'var(--ink)', maxWidth: 640 }}>
+              Your DSA + Java<br />journey, tracked.
+            </h1>
+            <p style={{ fontSize: 15, color: 'var(--ink-2)', maxWidth: 420, lineHeight: 1.65 }}>
+              Daily roadmaps, task streaks, gym logs, and syllabus tracking — all in one place. No fluff.
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              <MagBtn onClick={() => router.push('/signup')}>Get started →</MagBtn>
+              <MagBtn ghost onClick={() => router.push('/login')}>Sign in</MagBtn>
+            </div>
           </div>
 
           {/* Week nav */}
@@ -404,11 +417,13 @@ export default function Page() {
               padding: '48px 24px 64px',
               borderTop: '1px solid var(--line)',
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
               gap: '1px',
               background: 'var(--line)',
               borderLeft: 'none',
               borderRight: 'none',
+              position: 'relative',
+              zIndex: 1,
             }}
           >
             {[
@@ -427,7 +442,7 @@ export default function Page() {
           </div>
 
           {/* ── Bottom CTA ──────────────────────────────── */}
-          <div style={{ padding: '48px 24px', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '48px 24px', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)' }}>
             <div>
               <p style={{ fontFamily: 'var(--font-head)', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.03em', color: 'var(--ink)' }}>Ready to level up?</p>
               <p style={{ fontSize: '14px', color: 'var(--ink-2)', marginTop: '4px' }}>Start your DSA + Java journey today.</p>
@@ -439,6 +454,7 @@ export default function Page() {
           </div>
 
         </div>
+      </div>
       </div>
     </>
   )

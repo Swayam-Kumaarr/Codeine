@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { useProfile } from '@/lib/hooks/useProfile'
+import { useProfile, invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { useEffect } from 'react'
 
 const NAV = [
@@ -20,12 +20,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const { profile, reload } = useProfile()
 
-  // Fire login streak once per day, then re-fetch so the new value is visible immediately
+  // Fire login streak at most once per calendar day
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const key = 'codeine_streak_date'
+    if (localStorage.getItem(key) === today) return
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       await supabase.rpc('update_login_streak', { p_user_id: user.id })
+      localStorage.setItem(key, today)
       reload()
     })
   }, [])
@@ -33,7 +37,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   async function signOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    invalidateProfileCache()
+    router.push('/')
     router.refresh()
   }
 
@@ -127,7 +132,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard/settings" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', textDecoration: 'none' }}>
             <Settings size={15} /> Settings
           </Link>
-          <button onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', background: 'none', border: 'none', cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)', textAlign: 'left' }}>
+          <button onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', background: 'none', border: 'none', width: '100%', fontFamily: 'var(--font-body)', textAlign: 'left' }}>
             <LogOut size={15} /> Sign out
           </button>
           {profile && (

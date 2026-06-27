@@ -12,7 +12,7 @@ interface Subject {
   color: string
   bg_color: string
   topics: string[]
-  topics_done: number[]
+  topics_done: string[]
 }
 
 interface Homework {
@@ -47,7 +47,7 @@ export default function SubjectPage() {
       supabase.from('homework').select('*').eq('subject_id', id).eq('user_id', user.id).order('due_date', { ascending: true, nullsFirst: false }),
     ])
 
-    setSubject(sub ? { ...sub, topics_done: sub.topics_done ?? [] } : null)
+    setSubject(sub ? { ...sub, topics_done: (sub.topics_done ?? []) as string[] } : null)
     setHomework(hw ?? [])
     setLoading(false)
   }
@@ -56,11 +56,12 @@ export default function SubjectPage() {
 
   async function toggleTopic(idx: number) {
     if (!subject) return
+    const topicName = subject.topics[idx]
     const supabase = createClient()
-    const already = subject.topics_done.includes(idx)
+    const already = subject.topics_done.includes(topicName)
     const next = already
-      ? subject.topics_done.filter(i => i !== idx)
-      : [...subject.topics_done, idx]
+      ? subject.topics_done.filter(t => t !== topicName)
+      : [...subject.topics_done, topicName]
     setSubject({ ...subject, topics_done: next })
     await supabase.from('subjects').update({ topics_done: next }).eq('id', id)
   }
@@ -145,7 +146,7 @@ export default function SubjectPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', alignItems: 'start' }}>
 
         {/* Left: Topics */}
         <div>
@@ -158,11 +159,15 @@ export default function SubjectPage() {
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--ink-3)', fontSize: '13px' }}>No topics added yet.</div>
             ) : (
               subject.topics.map((topic, i) => {
-                const done = subject.topics_done.includes(i)
+                const done = subject.topics_done.includes(topic)
                 return (
                   <div
                     key={i}
+                    role="checkbox"
+                    aria-checked={done}
+                    tabIndex={0}
                     onClick={() => toggleTopic(i)}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggleTopic(i)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '12px',
                       padding: '12px 16px', cursor: 'pointer',
@@ -231,7 +236,7 @@ export default function SubjectPage() {
                         {hw.description && <p style={{ fontSize: '12px', color: 'var(--ink-3)' }}>{hw.description}</p>}
                         {due && <p style={{ fontSize: '11px', fontWeight: 500, color: due.overdue ? '#c0392b' : 'var(--ink-3)', marginTop: '3px' }}>{due.label}</p>}
                       </div>
-                      <button onClick={() => deleteHW(hw.id)} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 0, opacity: 0.5, flexShrink: 0 }}><X size={13} /></button>
+                      <button onClick={() => deleteHW(hw.id)} aria-label="Delete homework" style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 0, opacity: 0.5, flexShrink: 0 }}><X size={13} /></button>
                     </div>
                   )
                 })}
@@ -244,7 +249,7 @@ export default function SubjectPage() {
                           <CheckCircle2 size={16} color="var(--java-ink)" />
                         </button>
                         <span style={{ fontSize: '13px', color: 'var(--ink-2)', textDecoration: 'line-through', flex: 1 }}>{hw.title}</span>
-                        <button onClick={() => deleteHW(hw.id)} style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 0 }}><X size={12} /></button>
+                        <button onClick={() => deleteHW(hw.id)} aria-label="Delete homework" style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 0 }}><X size={12} /></button>
                       </div>
                     ))}
                   </div>

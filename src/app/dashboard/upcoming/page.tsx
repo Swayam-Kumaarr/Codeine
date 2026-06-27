@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { Calendar, CheckCircle2, Circle, Loader2, Zap } from 'lucide-react'
 
 interface Task {
@@ -84,6 +85,7 @@ export default function UpcomingPage() {
     if (task) {
       await supabase.rpc('award_xp', { p_user_id: user.id, p_xp: task.xp_value, p_reason: `Completed: ${task.title}` }).maybeSingle()
       await supabase.rpc('update_streak', { p_user_id: user.id }).maybeSingle()
+      invalidateProfileCache()
     }
     setTasks(prev => prev.filter(t => t.id !== taskId))
     setMarking(null)

@@ -20,6 +20,8 @@ interface CubesProps {
   rippleOnClick?: boolean
   rippleColor?: string
   rippleSpeed?: number
+  listenOnWindow?: boolean
+  style?: React.CSSProperties
 }
 
 export default function Cubes({
@@ -37,6 +39,8 @@ export default function Cubes({
   rippleOnClick = true,
   rippleColor = '#fff',
   rippleSpeed = 2,
+  listenOnWindow = false,
+  style,
 }: CubesProps) {
   const sceneRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
@@ -156,23 +160,26 @@ export default function Cubes({
   useEffect(() => {
     const el = sceneRef.current
     if (!el) return
-    el.addEventListener('pointermove', onPointerMove)
-    el.addEventListener('pointerleave', resetAll)
-    el.addEventListener('click', onClick)
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    const target = listenOnWindow ? window : el
+    target.addEventListener('pointermove', onPointerMove as EventListener)
+    target.addEventListener('click', onClick as EventListener)
+    target.addEventListener('touchmove', onTouchMove as EventListener, { passive: false })
+    target.addEventListener('touchstart', onTouchStart as EventListener, { passive: true })
+    target.addEventListener('touchend', onTouchEnd as EventListener, { passive: true })
+    if (!listenOnWindow) {
+      el.addEventListener('pointerleave', resetAll)
+    }
     return () => {
-      el.removeEventListener('pointermove', onPointerMove)
-      el.removeEventListener('pointerleave', resetAll)
-      el.removeEventListener('click', onClick)
-      el.removeEventListener('touchmove', onTouchMove)
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchend', onTouchEnd)
+      target.removeEventListener('pointermove', onPointerMove as EventListener)
+      target.removeEventListener('click', onClick as EventListener)
+      target.removeEventListener('touchmove', onTouchMove as EventListener)
+      target.removeEventListener('touchstart', onTouchStart as EventListener)
+      target.removeEventListener('touchend', onTouchEnd as EventListener)
+      if (!listenOnWindow) el.removeEventListener('pointerleave', resetAll)
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
     }
-  }, [onPointerMove, resetAll, onClick, onTouchMove, onTouchStart, onTouchEnd])
+  }, [listenOnWindow, onPointerMove, resetAll, onClick, onTouchMove, onTouchStart, onTouchEnd])
 
   const cells = Array.from({ length: gridSize })
   const sceneStyle = {
@@ -189,7 +196,7 @@ export default function Cubes({
   } as React.CSSProperties
 
   return (
-    <div className="default-animation" style={wrapperStyle}>
+    <div className="default-animation" style={{ ...wrapperStyle, ...style }}>
       <div ref={sceneRef} className="default-animation--scene" style={sceneStyle}>
         {cells.map((_, r) =>
           cells.map((__, c) => (

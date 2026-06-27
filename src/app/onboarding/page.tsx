@@ -1,14 +1,22 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import TimePicker from '@/components/TimePicker'
-import { GitBranch } from 'lucide-react'
 
 const STEPS = ['About you', 'Journeys', 'Schedule', 'GitHub', 'LeetCode']
 
 export default function OnboardingPage() {
   const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { router.replace('/login'); return }
+      const { data } = await supabase.from('profiles').select('onboarded').eq('id', user.id).single()
+      if (data?.onboarded) router.replace('/dashboard')
+    })
+  }, [router])
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
 
@@ -16,17 +24,12 @@ export default function OnboardingPage() {
   const [journeys, setJourneys] = useState<string[]>([])
   const [studyTime, setStudyTime] = useState('09:00')
   const [github, setGithub] = useState('')
-  const [githubMode, setGithubMode] = useState<'manual' | 'oauth'>('manual')
   const [leetcode, setLeetcode] = useState('')
 
   function toggleJourney(id: string) {
     setJourneys(prev =>
       prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]
     )
-  }
-
-  function handleGitHubOAuth() {
-    window.open('https://github.com', '_blank', 'noopener,noreferrer')
   }
 
   async function finish() {
@@ -189,53 +192,18 @@ export default function OnboardingPage() {
               We&apos;ll alert you if you haven&apos;t committed in 2 days. Optional.
             </p>
 
-            {/* Mode toggle */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-              {(['oauth', 'manual'] as const).map(mode => (
-                <button
-                  key={mode}
-                  onClick={() => setGithubMode(mode)}
-                  style={{
-                    flex: 1, padding: '10px', borderRadius: 'var(--r)',
-                    border: githubMode === mode ? '2px solid var(--ink)' : '2px solid var(--line-strong)',
-                    background: githubMode === mode ? 'var(--ink)' : 'transparent',
-                    color: githubMode === mode ? 'var(--bg)' : 'var(--ink-2)',
-                    fontSize: '13px', fontWeight: 500, cursor: 'pointer',
-                    fontFamily: 'var(--font-body)', transition: 'all 0.2s',
-                  }}
-                >
-                  {mode === 'oauth' ? 'Connect via OAuth' : 'Enter manually'}
-                </button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0', borderBottom: '2px solid var(--ink)' }}>
+              <span style={{ fontSize: '24px', fontFamily: 'var(--font-head)', color: 'var(--ink-3)', paddingBottom: '12px' }}>github.com/</span>
+              <input
+                autoFocus
+                type="text"
+                value={github}
+                onChange={e => setGithub(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && next()}
+                placeholder="username"
+                style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px 4px', fontSize: '24px', fontFamily: 'var(--font-head)', color: 'var(--ink)', outline: 'none', letterSpacing: '-0.02em' }}
+              />
             </div>
-
-            {githubMode === 'oauth' ? (
-              <button
-                onClick={handleGitHubOAuth}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                  padding: '16px 24px', background: '#1A1714', color: '#F0EDE8',
-                  border: 'none', borderRadius: 'var(--r)', fontSize: '15px', fontWeight: 500,
-                  cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'opacity 0.2s',
-                }}
-              >
-                <GitBranch size={18} />
-                Open GitHub to find your username ↗
-              </button>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0', borderBottom: '2px solid var(--ink)' }}>
-                <span style={{ fontSize: '24px', fontFamily: 'var(--font-head)', color: 'var(--ink-3)', paddingBottom: '12px' }}>github.com/</span>
-                <input
-                  autoFocus
-                  type="text"
-                  value={github}
-                  onChange={e => setGithub(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && next()}
-                  placeholder="username"
-                  style={{ flex: 1, background: 'transparent', border: 'none', padding: '12px 4px', fontSize: '24px', fontFamily: 'var(--font-head)', color: 'var(--ink)', outline: 'none', letterSpacing: '-0.02em' }}
-                />
-              </div>
-            )}
           </div>
         )}
 

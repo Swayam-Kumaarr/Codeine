@@ -11,7 +11,7 @@ interface Subject {
   color: string
   bg_color: string
   topics: string[]
-  topics_done: number[]
+  topics_done: string[]
   created_at: string
 }
 
@@ -235,6 +235,7 @@ export default function SyllabusPage() {
               </h3>
               <button
                 onClick={() => { setModalOpen(false); resetForm() }}
+                aria-label="Close"
                 style={{ background: 'none', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', display: 'flex', padding: '4px' }}
               >
                 <X size={18} />
@@ -358,6 +359,7 @@ export default function SyllabusPage() {
                         <span style={{ fontSize: '12px', fontWeight: 500, color: preset.ink }}>{t}</span>
                         <button
                           onClick={() => removeTopic(t)}
+                          aria-label={`Remove topic ${t}`}
                           style={{ background: 'none', border: 'none', color: preset.ink, cursor: 'pointer', display: 'flex', padding: 0, opacity: 0.6 }}
                         >
                           <X size={12} />

@@ -735,13 +735,13 @@ export const ALL_ROADMAPS = [JAVA_ROADMAP, DSA_ROADMAP]
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: given a start date string (ISO), return current day number (1-based)
 // ─────────────────────────────────────────────────────────────────────────────
-export function getDayNumber(startDateISO: string): number {
+export function getDayNumber(startDateISO: string, daysPaused = 0): number {
   const start = new Date(startDateISO)
   start.setHours(0, 0, 0, 0)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const diff = Math.floor((today.getTime() - start.getTime()) / 86_400_000)
-  return Math.max(1, diff + 1)
+  return Math.max(1, diff + 1 - daysPaused)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

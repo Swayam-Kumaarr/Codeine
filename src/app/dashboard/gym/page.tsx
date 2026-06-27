@@ -242,7 +242,7 @@ export default function GymPage() {
                   style={{ padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '12px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none', resize: 'vertical' }}
                 />
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <button onClick={() => setEditingDay(null)} style={{ flex: 1, padding: '7px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                  <button onClick={() => setEditingDay(null)} aria-label="Cancel edit" style={{ flex: 1, padding: '7px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                     <X size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />
                   </button>
                   <button onClick={saveEdit} disabled={saving} style={{ flex: 3, padding: '7px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--bg)', fontWeight: 500, cursor: saving ? 'default' : 'pointer', fontFamily: 'var(--font-body)' }}>

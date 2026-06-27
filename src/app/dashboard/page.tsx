@@ -1,5 +1,5 @@
 'use client'
-import { CheckCircle2, Circle, Flame, Zap, TrendingUp, AlertCircle, ChevronDown, ChevronUp, CalendarDays, Plus, X } from 'lucide-react'
+import { CheckCircle2, Circle, Flame, Zap, TrendingUp, AlertCircle, ChevronDown, ChevronUp, CalendarDays, Plus, X, Loader2 } from 'lucide-react'
 import { useTodaysTasks } from '@/lib/hooks/useTodaysTasks'
 import { useProfile } from '@/lib/hooks/useProfile'
 import { ALL_ROADMAPS, getDayNumber, getCurrentTopic } from '@/data/roadmaps'
@@ -30,6 +30,8 @@ export default function TodayPage() {
   const done = tasks.filter(t => t.done).length
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
   const todayXP = tasks.filter(t => t.done).reduce((sum, t) => sum + t.xp_value, 0)
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const roadmapProgress = journeys.map(j => {
     const roadmap = ALL_ROADMAPS.find(r => r.id === j.roadmap_id)
@@ -81,7 +83,7 @@ export default function TodayPage() {
       <div style={{ marginBottom: '36px' }}>
         <p style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '6px', letterSpacing: '0.04em' }}>{today}</p>
         <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '36px', fontWeight: 600, letterSpacing: '-0.03em', color: 'var(--ink)', lineHeight: 1.1 }}>
-          {profile ? `Good morning, ${profile.name.split(' ')[0]}` : 'Good morning'}
+          {profile ? `${greeting}, ${profile.name.split(' ')[0]}` : greeting}
         </h1>
         <p style={{ fontSize: '14px', color: 'var(--ink-2)', marginTop: '6px' }}>
           {loading ? 'Loading your tasks…' : `${tasks.length - done} task${tasks.length - done !== 1 ? 's' : ''} remaining · 🔥 ${profile?.streak ?? 0} task · 📅 ${profile?.login_streak ?? 0} login`}
@@ -89,7 +91,7 @@ export default function TodayPage() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '12px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px', marginBottom: '32px' }}>
         {[
           { label: 'Completed', value: `${done}/${tasks.length}`, icon: <CheckCircle2 size={14} />, color: 'var(--java-ink)' },
           { label: 'Login streak', value: `${profile?.login_streak ?? 0}d`, icon: <CalendarDays size={14} />, color: 'var(--ink-2)', desc: 'daily visits' },
@@ -145,7 +147,10 @@ export default function TodayPage() {
         )}
 
         {loading ? (
-          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-3)', fontSize: '14px' }}>Generating today&apos;s tasks…</div>
+          <div style={{ padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'var(--ink-3)', fontSize: '14px' }}>
+            <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} />
+            Generating today&apos;s tasks…
+          </div>
         ) : tasks.length === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-3)', fontSize: '14px' }}>
             No tasks yet.{' '}
@@ -166,14 +171,15 @@ export default function TodayPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 20px', cursor: 'pointer' }}
                 >
                   {/* Checkbox */}
-                  <div
+                  <button
                     onClick={e => { e.stopPropagation(); markDone(task.id) }}
-                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                    aria-label={task.done ? 'Mark undone' : 'Mark done'}
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: '2px' }}
                   >
                     {task.done
                       ? <CheckCircle2 size={18} color="var(--java-ink)" />
                       : <Circle size={18} color="var(--line-strong)" />}
-                  </div>
+                  </button>
 
                   {/* Title — click to expand */}
                   <span
@@ -192,6 +198,7 @@ export default function TodayPage() {
                   {task.roadmap_id && (
                     <button
                       onClick={() => setExpanded(isExpanded ? null : task.id)}
+                      aria-label={isExpanded ? 'Collapse task detail' : 'Expand task detail'}
                       style={{ background: 'none', border: 'none', color: 'var(--ink-3)', display: 'flex', alignItems: 'center', flexShrink: 0, padding: '0 2px' }}
                     >
                       {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}

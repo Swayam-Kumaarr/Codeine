@@ -1,15 +1,32 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlErrorCode = searchParams.get('error')
+
+  function friendlyUrlError(code: string) {
+    if (code === 'auth_callback_failed') return 'Sign-in failed. Please try again.'
+    if (code === 'no_code') return 'Invalid sign-in link. Please try again.'
+    return 'Something went wrong. Please try again.'
+  }
+
+  function friendlyError(msg: string) {
+    if (msg.includes('Invalid login credentials')) return 'Wrong email or password. Please try again.'
+    if (msg.includes('Email not confirmed')) return 'Please confirm your email before signing in.'
+    if (msg.includes('rate limit') || msg.includes('too many')) return 'Too many attempts. Please wait a few minutes and try again.'
+    return msg
+  }
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(urlErrorCode ? friendlyUrlError(urlErrorCode) : '')
   const [loading, setLoading] = useState(false)
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -17,9 +34,17 @@ export default function LoginPage() {
     setError('')
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { setError(friendlyError(error.message)); setLoading(false); return }
     router.push('/dashboard')
     router.refresh()
+  }
+
+  async function resendVerification() {
+    if (!email) { setError('Enter your email above first.'); return }
+    setResendState('sending')
+    const supabase = createClient()
+    await supabase.auth.resend({ type: 'signup', email })
+    setResendState('sent')
   }
 
   async function handleGoogle() {
@@ -65,7 +90,10 @@ export default function LoginPage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Password</label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Password</label>
+            <Link href="/forgot-password" style={{ fontSize: '12px', color: 'var(--ink-3)', textDecoration: 'none' }}>Forgot password?</Link>
+          </div>
           <input
             type="password"
             value={password}
@@ -87,7 +115,19 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <p style={{ fontSize: '13px', color: '#c0392b', background: '#fdf0f0', border: '1px solid #f5c6cb', borderRadius: 'var(--r)', padding: '10px 12px' }}>{error}</p>
+          <div style={{ fontSize: '13px', color: '#c0392b', background: '#fdf0f0', border: '1px solid #f5c6cb', borderRadius: 'var(--r)', padding: '10px 12px' }}>
+            <p>{error}</p>
+            {error.includes('confirm your email') && (
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={resendState !== 'idle'}
+                style={{ marginTop: '8px', fontSize: '12px', fontWeight: 500, color: '#c0392b', background: 'none', border: 'none', padding: 0, cursor: resendState === 'idle' ? 'pointer' : 'default', textDecoration: resendState === 'idle' ? 'underline' : 'none', fontFamily: 'var(--font-body)' }}
+              >
+                {resendState === 'sent' ? '✓ Verification email sent' : resendState === 'sending' ? 'Sending…' : 'Resend verification email →'}
+              </button>
+            )}
+          </div>
         )}
 
         <button
@@ -152,5 +192,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

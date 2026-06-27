@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { CheckCircle2, Circle, AlertTriangle, Clock, Loader2 } from 'lucide-react'
 
 interface Task {
@@ -69,6 +70,7 @@ export default function PendingPage() {
         user_id: user.id, log_date: task.scheduled_date, tasks_done: 1,
       }, { onConflict: 'user_id,log_date' })
       await supabase.rpc('update_streak', { p_user_id: user.id }).maybeSingle()
+      invalidateProfileCache()
     }
 
     setTasks(prev => prev.filter(t => t.id !== taskId))
