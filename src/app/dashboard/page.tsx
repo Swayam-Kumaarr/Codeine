@@ -57,7 +57,10 @@ export default function TodayPage() {
     if (!journey) return null
     const roadmap = ALL_ROADMAPS.find(r => r.id === roadmapId)
     if (!roadmap) return null
-    const dayNum = getDayNumber(journey.started_at)
+    const isPaused = !!journey.paused_at
+    const dayNum = isPaused
+      ? getDayNumber(journey.paused_at!, journey.days_paused)
+      : getDayNumber(journey.started_at, journey.days_paused)
     const result = getCurrentTopic(roadmap, dayNum)
     if (!result) return null
     return { dayNum, topic: result.topic, dayWithinTopic: result.dayWithinTopic }

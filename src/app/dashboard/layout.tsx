@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch } from 'lucide-react'
+import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile, invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { useEffect } from 'react'
@@ -13,6 +13,11 @@ const NAV = [
   { href: '/dashboard/pending', label: 'Pending', icon: AlertCircle },
   { href: '/dashboard/syllabus', label: 'Syllabus', icon: BookOpen },
   { href: '/dashboard/gym', label: 'Gym', icon: Dumbbell },
+  { href: '/dashboard/timetable', label: 'Timetable', icon: Clock },
+  { href: '/dashboard/journal', label: 'Journal', icon: PenLine },
+  { href: '/dashboard/cgpa', label: 'CGPA', icon: GraduationCap },
+  { href: '/dashboard/ideas', label: 'Ideas', icon: Lightbulb },
+  { href: '/dashboard/achievements', label: 'Achievements', icon: Trophy },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
