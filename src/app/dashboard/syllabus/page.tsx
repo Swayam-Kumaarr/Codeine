@@ -1,7 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, X, ChevronRight, CheckCircle2, Circle, Loader2 } from 'lucide-react'
+import { Plus, X, ChevronRight, Circle, Loader2, Upload } from 'lucide-react'
 import Link from 'next/link'
 
 interface Subject {
@@ -36,6 +36,50 @@ export default function SyllabusPage() {
   const [formTopic, setFormTopic] = useState('')
   const [formTopics, setFormTopics] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [parseError, setParseError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function parseTopicsFromText(text: string): string[] {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+    const topics: string[] = []
+    let currentSection = ''
+    for (const line of lines) {
+      if (line.startsWith('#')) {
+        currentSection = line.replace(/^#+\s*/, '').trim()
+        if (currentSection) topics.push(currentSection)
+      } else if (line.startsWith('-') || line.startsWith('*') || line.startsWith('•')) {
+        const sub = line.replace(/^[-*•]\s*/, '').trim()
+        if (sub) topics.push(currentSection ? `  ${sub}` : sub)
+      } else if (line.match(/^\d+\./)) {
+        const sub = line.replace(/^\d+\.\s*/, '').trim()
+        if (sub) topics.push(sub)
+      } else {
+        topics.push(line)
+      }
+    }
+    return topics.filter(t => t.trim())
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setParseError('')
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const parsed = parseTopicsFromText(text)
+      if (parsed.length === 0) {
+        setParseError('No topics found in file. Use # for headers, - for subtopics.')
+        return
+      }
+      setFormTopics(parsed)
+      if (!formName && file.name) {
+        setFormName(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '))
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   async function loadSubjects() {
     const supabase = createClient()
@@ -320,9 +364,29 @@ export default function SyllabusPage() {
 
               {/* Topics */}
               <div style={{ marginBottom: '28px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '8px' }}>
-                  Syllabus Topics
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+                    Syllabus Topics
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--ink-2)', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', padding: '4px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+                  >
+                    <Upload size={11} /> Import from file
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.md,.text"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                </div>
+                {parseError && <p style={{ fontSize: '12px', color: '#c0392b', marginBottom: '8px' }}>{parseError}</p>}
+                <p style={{ fontSize: '11px', color: 'var(--ink-3)', marginBottom: '10px' }}>
+                  Upload a .txt or .md file — use <code style={{ background: 'var(--bg-hover)', padding: '1px 4px', borderRadius: 2 }}>#</code> for sections, <code style={{ background: 'var(--bg-hover)', padding: '1px 4px', borderRadius: 2 }}>-</code> for subtopics.
+                </p>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                   <input
                     type="text"

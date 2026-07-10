@@ -188,103 +188,119 @@ export default function GymPage() {
         )}
       </div>
 
-      {/* Weekly split grid */}
+      {/* Weekly split list */}
       <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '14px' }}>
         Weekly Split
       </h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '32px' }}>
-        {split.map(day => {
+      <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: '32px' }}>
+        {split.map((day, idx) => {
           const isToday = day.day_of_week === todayDow
           const isEditing = editingDay === day.day_of_week
-          const isRest = day.label === 'Rest'
-
-          if (isEditing) {
-            return (
-              <div key={day.day_of_week} style={{
-                gridColumn: 'span 2',
-                background: 'var(--bg-panel)', border: '2px solid var(--ink)',
-                borderRadius: 'var(--r)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px',
-              }}>
-                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {DAYS[day.day_of_week]}
-                </p>
-                {/* Preset buttons */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                  {SPLIT_PRESETS.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => setEditLabel(p)}
-                      style={{
-                        padding: '3px 9px', borderRadius: '999px', fontSize: '11px', fontWeight: 500,
-                        border: editLabel === p ? '1.5px solid var(--ink)' : '1.5px solid var(--line-strong)',
-                        background: editLabel === p ? 'var(--ink)' : 'transparent',
-                        color: editLabel === p ? 'var(--bg)' : 'var(--ink-2)',
-                        cursor: 'pointer', fontFamily: 'var(--font-body)',
-                      }}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-                {/* Custom label */}
-                <input
-                  value={editLabel}
-                  onChange={e => setEditLabel(e.target.value)}
-                  placeholder="or type custom…"
-                  style={{ padding: '7px 10px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none' }}
-                />
-                {/* Exercises */}
-                <textarea
-                  value={editExercises}
-                  onChange={e => setEditExercises(e.target.value)}
-                  placeholder={'Exercises (one per line)\nBench Press\nIncline DB\n...'}
-                  rows={4}
-                  style={{ padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '12px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none', resize: 'vertical' }}
-                />
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button onClick={() => setEditingDay(null)} aria-label="Cancel edit" style={{ flex: 1, padding: '7px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-                    <X size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                  </button>
-                  <button onClick={saveEdit} disabled={saving} style={{ flex: 3, padding: '7px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--bg)', fontWeight: 500, cursor: saving ? 'default' : 'pointer', fontFamily: 'var(--font-body)' }}>
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-              </div>
-            )
-          }
+          const isRestDay = day.label === 'Rest'
 
           return (
-            <div
-              key={day.day_of_week}
-              onClick={() => startEdit(day.day_of_week)}
-              style={{
-                background: isToday ? (isRest ? 'var(--bg-panel)' : 'var(--rev-bg)') : 'var(--bg-panel)',
-                border: isToday ? `2px solid ${isRest ? 'var(--ink-3)' : 'var(--rev-ink)'}` : '1px solid var(--line)',
-                borderRadius: 'var(--r)', padding: '12px 10px',
-                cursor: 'pointer', transition: 'background 0.15s',
-                display: 'flex', flexDirection: 'column', gap: '6px',
-                minHeight: '90px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: isToday ? (isRest ? 'var(--ink-3)' : 'var(--rev-ink)') : 'var(--ink-3)' }}>
-                  {DAY_SHORT[day.day_of_week]}
-                </span>
-                {isToday && <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: isRest ? 'var(--ink-3)' : 'var(--rev-ink)' }} />}
-              </div>
-              <p style={{
-                fontFamily: 'var(--font-head)', fontSize: '14px', fontWeight: 600, letterSpacing: '-0.01em',
-                color: isToday ? (isRest ? 'var(--ink-3)' : 'var(--rev-ink)') : isRest ? 'var(--ink-3)' : 'var(--ink)',
-                lineHeight: 1.2, flex: 1,
+            <div key={day.day_of_week} style={{ borderBottom: idx < split.length - 1 ? '1px solid var(--line)' : 'none' }}>
+              {/* Main row */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '16px',
+                padding: '14px 20px',
+                background: isToday ? (isRestDay ? 'transparent' : 'rgba(122,32,32,0.04)') : 'transparent',
               }}>
-                {day.label}
-              </p>
-              {!isRest && day.exercises.length > 0 && (
-                <p style={{ fontSize: '10px', color: 'var(--ink-3)', lineHeight: 1.4 }}>
-                  {day.exercises.slice(0, 2).join(', ')}{day.exercises.length > 2 ? '…' : ''}
+                {/* Day name */}
+                <div style={{ width: '96px', flexShrink: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--ink)' : 'var(--ink-2)' }}>
+                    {DAYS[day.day_of_week]}
+                  </p>
+                  {isToday && <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--rev-ink)' }}>Today</span>}
+                </div>
+
+                {/* Quick dropdown */}
+                <select
+                  value={SPLIT_PRESETS.includes(day.label) ? day.label : 'Custom'}
+                  onChange={async e => {
+                    const val = e.target.value
+                    if (val === 'Custom') return
+                    const supabase = createClient()
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) return
+                    await supabase.from('gym_split').upsert({ user_id: user.id, day_of_week: day.day_of_week, label: val, exercises: day.exercises }, { onConflict: 'user_id,day_of_week' })
+                    setSplit(prev => prev.map(d => d.day_of_week === day.day_of_week ? { ...d, label: val } : d))
+                  }}
+                  style={{
+                    padding: '6px 12px', background: isRestDay ? 'var(--bg)' : 'var(--rev-bg)',
+                    border: `1px solid ${isRestDay ? 'var(--line-strong)' : 'rgba(122,32,32,0.25)'}`,
+                    borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 600,
+                    color: isRestDay ? 'var(--ink-3)' : 'var(--rev-ink)',
+                    cursor: 'pointer', fontFamily: 'var(--font-body)', outline: 'none',
+                  }}
+                >
+                  {SPLIT_PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
+                  {!SPLIT_PRESETS.includes(day.label) && <option value="Custom">{day.label}</option>}
+                </select>
+
+                {/* Exercises preview */}
+                <p style={{ flex: 1, fontSize: '12px', color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {day.exercises.length > 0 ? day.exercises.join(' · ') : isRestDay ? '' : 'No exercises — click Edit'}
                 </p>
+
+                {/* Edit button */}
+                <button
+                  onClick={() => isEditing ? setEditingDay(null) : startEdit(day.day_of_week)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', background: isEditing ? 'var(--ink)' : 'transparent', border: `1px solid ${isEditing ? 'var(--ink)' : 'var(--line-strong)'}`, borderRadius: 'var(--r)', fontSize: '11px', color: isEditing ? 'var(--bg)' : 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)', flexShrink: 0 }}
+                >
+                  <Pencil size={11} /> {isEditing ? 'Close' : 'Edit'}
+                </button>
+              </div>
+
+              {/* Inline edit panel */}
+              {isEditing && (
+                <div style={{ padding: '16px 20px', background: 'var(--bg-hover)', borderTop: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Preset pills */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {SPLIT_PRESETS.map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setEditLabel(p)}
+                        style={{
+                          padding: '5px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 500,
+                          border: editLabel === p ? '1.5px solid var(--ink)' : '1.5px solid var(--line-strong)',
+                          background: editLabel === p ? 'var(--ink)' : 'var(--bg)',
+                          color: editLabel === p ? 'var(--bg)' : 'var(--ink-2)',
+                          cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.15s',
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom label */}
+                  <input
+                    value={editLabel}
+                    onChange={e => setEditLabel(e.target.value)}
+                    placeholder="Or type a custom label…"
+                    style={{ width: '280px', padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none' }}
+                  />
+                  {/* Exercises */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', display: 'block', marginBottom: '6px' }}>Exercises (one per line)</label>
+                    <textarea
+                      value={editExercises}
+                      onChange={e => setEditExercises(e.target.value)}
+                      placeholder={'Bench Press\nIncline DB Press\nCable Fly\n...'}
+                      rows={4}
+                      style={{ width: '100%', maxWidth: '480px', padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={saveEdit} disabled={saving} style={{ padding: '8px 20px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--bg)', fontWeight: 500, cursor: saving ? 'default' : 'pointer', fontFamily: 'var(--font-body)' }}>
+                      {saving ? 'Saving…' : 'Save'}
+                    </button>
+                    <button onClick={() => setEditingDay(null)} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
-              <Pencil size={10} color="var(--ink-3)" style={{ opacity: 0.4, alignSelf: 'flex-end' }} />
             </div>
           )
         })}

@@ -46,7 +46,7 @@ export default function PendingPage() {
       .select('*')
       .eq('user_id', user.id)
       .eq('done', false)
-      .lte('scheduled_date', today)
+      .lt('scheduled_date', today)
       .order('scheduled_date', { ascending: true })
 
     setTasks(data ?? [])

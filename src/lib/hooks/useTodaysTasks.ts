@@ -25,67 +25,72 @@ export function useTodaysTasks() {
   const load = useCallback(async () => {
     if (generating.current) return
     generating.current = true
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
 
-    // Ensure today's tasks exist — generate from journeys if needed
-    const { data: journeys } = await supabase
-      .from('journeys')
-      .select('*')
-      .eq('user_id', user.id)
+      // Ensure today's tasks exist — generate from journeys if needed
+      const { data: journeys } = await supabase
+        .from('journeys')
+        .select('*')
+        .eq('user_id', user.id)
 
-    if (journeys?.length) {
-      const { data: existing } = await supabase
+      if (journeys?.length) {
+        const { data: existing } = await supabase
+          .from('tasks')
+          .select('roadmap_id')
+          .eq('user_id', user.id)
+          .eq('scheduled_date', today)
+          .not('roadmap_id', 'is', null)
+
+        const existingRoadmaps = new Set((existing || []).map(t => t.roadmap_id))
+
+        for (const journey of journeys) {
+          // Skip paused journeys — no task generated while paused
+          if (journey.paused_at) continue
+          if (existingRoadmaps.has(journey.roadmap_id)) continue
+
+          const roadmap = ALL_ROADMAPS.find(r => r.id === journey.roadmap_id)
+          if (!roadmap) continue
+
+          const dayNum = getDayNumber(journey.started_at, journey.days_paused ?? 0)
+          const result = getCurrentTopic(roadmap, dayNum)
+          if (!result) continue
+
+          const { topic, dayWithinTopic } = result
+          const schedEntry = topic.schedule.find(s => {
+            const [start, end] = s.days.includes('-')
+              ? s.days.split('-').map(Number)
+              : [Number(s.days), Number(s.days)]
+            return dayWithinTopic >= start && dayWithinTopic <= end
+          })
+
+          await supabase.from('tasks').insert({
+            user_id: user.id,
+            roadmap_id: journey.roadmap_id,
+            topic_number: topic.number,
+            title: `${topic.name} — ${schedEntry?.activity ?? 'Study'}`,
+            description: `Day ${dayNum} · ${topic.name} · ${schedEntry?.activity ?? ''}`,
+            scheduled_date: today,
+            xp_value: 30,
+          })
+        }
+      }
+
+      // Fetch all tasks for today
+      const { data } = await supabase
         .from('tasks')
-        .select('roadmap_id')
+        .select('*')
         .eq('user_id', user.id)
         .eq('scheduled_date', today)
-        .not('roadmap_id', 'is', null)
+        .order('created_at', { ascending: true })
 
-      const existingRoadmaps = new Set((existing || []).map(t => t.roadmap_id))
-
-      for (const journey of journeys) {
-        if (existingRoadmaps.has(journey.roadmap_id)) continue
-
-        const roadmap = ALL_ROADMAPS.find(r => r.id === journey.roadmap_id)
-        if (!roadmap) continue
-
-        const dayNum = getDayNumber(journey.started_at)
-        const result = getCurrentTopic(roadmap, dayNum)
-        if (!result) continue
-
-        const { topic, dayWithinTopic } = result
-        const schedEntry = topic.schedule.find(s => {
-          const [start, end] = s.days.includes('-')
-            ? s.days.split('-').map(Number)
-            : [Number(s.days), Number(s.days)]
-          return dayWithinTopic >= start && dayWithinTopic <= end
-        })
-
-        await supabase.from('tasks').insert({
-          user_id: user.id,
-          roadmap_id: journey.roadmap_id,
-          topic_number: topic.number,
-          title: `${topic.name} — ${schedEntry?.activity ?? 'Study'}`,
-          description: `Day ${dayNum} · ${topic.name} · ${schedEntry?.activity ?? ''}`,
-          scheduled_date: today,
-          xp_value: 30,
-        })
-      }
+      setTasks(data ?? [])
+      setLoading(false)
+    } finally {
+      generating.current = false
     }
-
-    // Fetch all tasks for today
-    const { data } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('scheduled_date', today)
-      .order('created_at', { ascending: true })
-
-    setTasks(data ?? [])
-    setLoading(false)
-    generating.current = false
   }, [today])
 
   useEffect(() => { load() }, [load])

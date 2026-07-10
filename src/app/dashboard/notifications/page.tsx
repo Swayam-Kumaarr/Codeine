@@ -86,21 +86,24 @@ export default function NotificationsPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    // Fetch LC data
-    fetch('/api/leetcode').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.solved) setLcStatus({ solved: d.solved.total, submittedToday: false })
-    }).catch(() => {})
+    if (!profile) return
 
-    // Fetch contests
-    fetch('/api/leetcode/contests').then(r => r.ok ? r.json() : null).then(d => {
-      if (d?.contests) setContests(d.contests)
-    }).catch(() => {})
+    if (profile.leetcode_username) {
+      fetch('/api/leetcode').then(r => r.ok ? r.json() : null).then(d => {
+        if (d?.solved) setLcStatus({ solved: d.solved.total, submittedToday: false })
+      }).catch(() => {})
 
-    // Fetch GitHub status
-    fetch('/api/github/status').then(r => r.ok ? r.json() : null).then(d => {
-      if (d) setGhStatus(d)
-    }).catch(() => {})
-  }, [profile?.github_username, profile?.leetcode_username])
+      fetch('/api/leetcode/contests').then(r => r.ok ? r.json() : null).then(d => {
+        if (d?.contests) setContests(d.contests)
+      }).catch(() => {})
+    }
+
+    if (profile.github_username) {
+      fetch('/api/github/status').then(r => r.ok ? r.json() : null).then(d => {
+        if (d) setGhStatus(d)
+      }).catch(() => {})
+    }
+  }, [profile?.github_username, profile?.leetcode_username, profile])
 
   async function save(updates: Partial<NotifPrefs>) {
     const next = { ...prefs, ...updates }
@@ -455,11 +458,19 @@ export default function NotificationsPage() {
       </div>
 
       {/* Recent notification log */}
-      {log.length > 0 && (
-        <div style={{ marginTop: '40px' }}>
-          <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '14px' }}>
+      <div style={{ marginTop: '40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
             Recent Notifications Sent
           </h2>
+          <button
+            onClick={load}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '11px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+          >
+            <RefreshCw size={11} /> Refresh
+          </button>
+        </div>
+        {log.length > 0 ? (
           <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
             {log.map((entry, i) => (
               <div key={entry.id} style={{
@@ -480,8 +491,10 @@ export default function NotificationsPage() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p style={{ fontSize: '13px', color: 'var(--ink-3)', padding: '16px 0' }}>No notifications sent yet.</p>
+        )}
+      </div>
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { ALL_ROADMAPS, getDayNumber, getCurrentTopic } from '@/data/roadmaps'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-interface Journey { roadmap_id: string; started_at: string }
+interface Journey { roadmap_id: string; started_at: string; paused_at: string | null; days_paused: number }
 
 export default function TodayPage() {
   const { tasks, loading: tasksLoading, markDone, reload: reloadTasks } = useTodaysTasks()
@@ -21,7 +21,7 @@ export default function TodayPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('journeys').select('roadmap_id,started_at').eq('user_id', user.id).then(({ data }) => {
+      supabase.from('journeys').select('roadmap_id,started_at,paused_at,days_paused').eq('user_id', user.id).then(({ data }) => {
         setJourneys(data ?? [])
       })
     })
@@ -36,7 +36,10 @@ export default function TodayPage() {
   const roadmapProgress = journeys.map(j => {
     const roadmap = ALL_ROADMAPS.find(r => r.id === j.roadmap_id)
     if (!roadmap) return null
-    const dayNum = getDayNumber(j.started_at)
+    const isPaused = !!j.paused_at
+    const dayNum = isPaused
+      ? getDayNumber(j.paused_at!, j.days_paused)
+      : getDayNumber(j.started_at, j.days_paused)
     const result = getCurrentTopic(roadmap, dayNum)
     const pct = Math.round((dayNum / roadmap.totalDays) * 100)
     return {
