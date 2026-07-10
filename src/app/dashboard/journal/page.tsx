@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { PenLine, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { PenLine, Loader2, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
 interface Entry {
   id: string
@@ -21,7 +21,9 @@ const PROMPTS: { key: keyof Pick<Entry, 'built' | 'hard' | 'tomorrow'>; label: s
 export default function JournalPage() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [todayEntry, setTodayEntry] = useState<Entry | null>(null)
   const [form, setForm] = useState({ built: '', hard: '', tomorrow: '' })
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -29,16 +31,19 @@ export default function JournalPage() {
   const today = new Date().toISOString().split('T')[0]
 
   const load = useCallback(async () => {
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const { data } = await supabase
+    const { data, error: dbErr } = await supabase
       .from('journal_entries')
       .select('*')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(30)
+
+    if (dbErr) { setError(dbErr.message); setLoading(false); return }
 
     const all = (data ?? []) as Entry[]
     const todayE = all.find(e => e.date === today)
@@ -54,18 +59,24 @@ export default function JournalPage() {
 
   async function save() {
     setSaving(true)
+    setSaveError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
     const payload = { user_id: user.id, date: today, ...form }
+    let dbErr
     if (todayEntry) {
-      await supabase.from('journal_entries').update(payload).eq('id', todayEntry.id)
+      const { error } = await supabase.from('journal_entries').update(payload).eq('id', todayEntry.id).eq('user_id', user.id)
+      dbErr = error
     } else {
-      await supabase.from('journal_entries').insert(payload)
+      const { error } = await supabase.from('journal_entries').insert(payload)
+      dbErr = error
     }
-    await load()
+
+    if (dbErr) { setSaveError(dbErr.message); setSaving(false); return }
     setSaving(false)
+    await load()
   }
 
   const pastEntries = entries.filter(e => e.date !== today)
@@ -78,6 +89,8 @@ export default function JournalPage() {
     return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
   }
 
+  const formEmpty = !form.built.trim() && !form.hard.trim() && !form.tomorrow.trim()
+
   return (
     <div style={{ padding: '40px', maxWidth: '760px' }}>
       {/* Header */}
@@ -88,6 +101,13 @@ export default function JournalPage() {
         </div>
         <p style={{ fontSize: '14px', color: 'var(--ink-2)' }}>3 prompts · 2 minutes · every day</p>
       </div>
+
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', marginBottom: '16px', fontSize: '13px', color: 'var(--rev-ink)' }}>
+          <AlertCircle size={14} /> {error}
+          <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rev-ink)', fontSize: '12px', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}>Retry</button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--ink-3)' }}>
@@ -120,10 +140,16 @@ export default function JournalPage() {
                 </div>
               ))}
 
+              {saveError && (
+                <div style={{ padding: '10px 14px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--rev-ink)', marginBottom: '14px' }}>
+                  {saveError}
+                </div>
+              )}
+
               <button
                 onClick={save}
-                disabled={saving || (!form.built.trim() && !form.hard.trim() && !form.tomorrow.trim())}
-                style={{ padding: '10px 24px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '7px', opacity: (!form.built.trim() && !form.hard.trim() && !form.tomorrow.trim()) ? 0.4 : 1 }}
+                disabled={saving || formEmpty}
+                style={{ padding: '10px 24px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: saving || formEmpty ? 'default' : 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '7px', opacity: formEmpty ? 0.4 : 1 }}
               >
                 {saving ? <><Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} />Saving…</> : todayEntry ? 'Update entry' : 'Save entry'}
               </button>
@@ -167,8 +193,6 @@ export default function JournalPage() {
           )}
         </>
       )}
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

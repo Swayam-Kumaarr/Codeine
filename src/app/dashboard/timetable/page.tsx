@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Clock, Trash2, Loader2, X } from 'lucide-react'
+import { Plus, Clock, Trash2, Loader2, X, AlertCircle } from 'lucide-react'
 
 interface Block {
   id: string
@@ -14,10 +14,10 @@ interface Block {
   batch: string
 }
 
+// 0=Mon … 5=Sat (matches DB convention)
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Subject color cycling
 const COLORS = [
   { bg: 'var(--dsa-bg)',  ink: 'var(--dsa-ink)' },
   { bg: 'var(--java-bg)', ink: 'var(--java-ink)' },
@@ -31,6 +31,11 @@ function colorForLabel(label: string) {
   return COLORS[hash % COLORS.length]
 }
 
+// Convert JS getDay() (0=Sun … 6=Sat) → our convention (0=Mon … 5=Sat)
+function jsDayToOur(jsDay: number): number {
+  return jsDay === 0 ? -1 : jsDay - 1  // -1 = Sunday (not shown)
+}
+
 function emptyBlock(day: number): Omit<Block, 'id'> {
   return { day_of_week: day, start_time: '09:00', end_time: '10:00', label: '', subject_code: '', room: '', batch: '' }
 }
@@ -38,20 +43,25 @@ function emptyBlock(day: number): Omit<Block, 'id'> {
 export default function TimetablePage() {
   const [blocks, setBlocks] = useState<Block[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyBlock(0))
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
-    const { data } = await supabase
+    const { data, error: dbErr } = await supabase
       .from('timetable_blocks')
       .select('*')
       .eq('user_id', user.id)
-      .order('day_of_week').order('start_time')
+      .order('day_of_week')
+      .order('start_time')
+    if (dbErr) { setError(dbErr.message); setLoading(false); return }
     setBlocks((data ?? []) as Block[])
     setLoading(false)
   }, [])
@@ -61,45 +71,62 @@ export default function TimetablePage() {
   function startAdd(day: number) {
     setForm(emptyBlock(day))
     setEditingId(null)
+    setSaveError(null)
     setShowForm(true)
   }
 
   function startEdit(b: Block) {
     setForm({ day_of_week: b.day_of_week, start_time: b.start_time, end_time: b.end_time, label: b.label, subject_code: b.subject_code, room: b.room, batch: b.batch })
     setEditingId(b.id)
+    setSaveError(null)
     setShowForm(true)
   }
 
   function cancelForm() {
     setShowForm(false)
     setEditingId(null)
+    setSaveError(null)
   }
 
   async function save() {
     if (!form.label.trim()) return
+    // Basic time validation
+    if (form.start_time >= form.end_time) {
+      setSaveError('Start time must be before end time.')
+      return
+    }
     setSaving(true)
+    setSaveError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
+    let dbErr
     if (editingId) {
-      await supabase.from('timetable_blocks').update({ ...form, user_id: user.id }).eq('id', editingId)
+      const { error } = await supabase.from('timetable_blocks').update({ ...form, user_id: user.id }).eq('id', editingId).eq('user_id', user.id)
+      dbErr = error
     } else {
-      await supabase.from('timetable_blocks').insert({ ...form, user_id: user.id })
+      const { error } = await supabase.from('timetable_blocks').insert({ ...form, user_id: user.id })
+      dbErr = error
     }
+
+    if (dbErr) { setSaveError(dbErr.message); setSaving(false); return }
+    setSaving(false)
     cancelForm()
     await load()
-    setSaving(false)
   }
 
-  async function del(id: string) {
+  async function del(id: string, label: string) {
+    if (!window.confirm(`Delete "${label}" slot? This cannot be undone.`)) return
     const supabase = createClient()
-    await supabase.from('timetable_blocks').delete().eq('id', id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error: dbErr } = await supabase.from('timetable_blocks').delete().eq('id', id).eq('user_id', user.id)
+    if (dbErr) { setError(dbErr.message); return }
     setBlocks(prev => prev.filter(b => b.id !== id))
   }
 
-  const todayIdx = new Date().getDay() // 0=Sun, convert to Mon=0
-  const todayDay = todayIdx === 0 ? 6 : todayIdx - 1 // 0=Mon...5=Sat, 6=Sun (not shown)
+  const todayDay = jsDayToOur(new Date().getDay())
 
   return (
     <div style={{ padding: '40px', maxWidth: '960px' }}>
@@ -114,13 +141,20 @@ export default function TimetablePage() {
         </div>
         {!showForm && (
           <button
-            onClick={() => startAdd(todayDay)}
+            onClick={() => startAdd(todayDay >= 0 ? todayDay : 0)}
             style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '10px 18px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
           >
             <Plus size={14} /> Add slot
           </button>
         )}
       </div>
+
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', marginBottom: '16px', fontSize: '13px', color: 'var(--rev-ink)' }}>
+          <AlertCircle size={14} /> {error}
+          <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rev-ink)', fontSize: '12px', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}>Retry</button>
+        </div>
+      )}
 
       {/* Form */}
       {showForm && (
@@ -166,9 +200,15 @@ export default function TimetablePage() {
             ))}
           </div>
 
+          {saveError && (
+            <div style={{ padding: '10px 14px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--rev-ink)', marginBottom: '14px' }}>
+              {saveError}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={save} disabled={!form.label.trim() || saving}
-              style={{ padding: '9px 22px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              style={{ padding: '9px 22px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: !form.label.trim() || saving ? 'default' : 'pointer', opacity: !form.label.trim() ? 0.4 : 1, fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               {saving ? <><Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />Saving…</> : 'Save slot'}
             </button>
             <button onClick={cancelForm} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancel</button>
@@ -206,7 +246,7 @@ export default function TimetablePage() {
 
                 {/* Blocks */}
                 {dayBlocks.length === 0 ? (
-                  <div style={{ padding: '16px 18px', fontSize: '13px', color: 'var(--ink-3)' }}>No classes — free day</div>
+                  <div style={{ padding: '14px 18px', fontSize: '13px', color: 'var(--ink-3)' }}>No classes</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {dayBlocks.map((b, i) => {
@@ -223,7 +263,7 @@ export default function TimetablePage() {
                           {b.room && <span style={{ fontSize: '11px', color: 'var(--ink-3)' }}>{b.room}</span>}
                           {b.batch && <span style={{ fontSize: '11px', color: 'var(--ink-3)' }}>{b.batch}</span>}
                           <button onClick={() => startEdit(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: '11px', fontFamily: 'var(--font-body)', padding: '3px 8px' }}>Edit</button>
-                          <button onClick={() => del(b.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', display: 'flex' }}><Trash2 size={12} /></button>
+                          <button onClick={() => del(b.id, b.label)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', display: 'flex' }}><Trash2 size={12} /></button>
                         </div>
                       )
                     })}
@@ -234,8 +274,6 @@ export default function TimetablePage() {
           })}
         </div>
       )}
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

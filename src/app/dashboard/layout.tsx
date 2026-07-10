@@ -6,18 +6,33 @@ import { createClient } from '@/lib/supabase/client'
 import { useProfile, invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { useEffect } from 'react'
 
-const NAV = [
-  { href: '/dashboard', label: 'Today', icon: Zap },
-  { href: '/dashboard/roadmaps', label: 'Roadmaps', icon: Map },
-  { href: '/dashboard/upcoming', label: 'Upcoming', icon: CalendarDays },
-  { href: '/dashboard/pending', label: 'Pending', icon: AlertCircle },
-  { href: '/dashboard/syllabus', label: 'Syllabus', icon: BookOpen },
-  { href: '/dashboard/gym', label: 'Gym', icon: Dumbbell },
-  { href: '/dashboard/timetable', label: 'Timetable', icon: Clock },
-  { href: '/dashboard/journal', label: 'Journal', icon: PenLine },
-  { href: '/dashboard/cgpa', label: 'CGPA', icon: GraduationCap },
-  { href: '/dashboard/ideas', label: 'Ideas', icon: Lightbulb },
-  { href: '/dashboard/achievements', label: 'Achievements', icon: Trophy },
+const NAV_GROUPS = [
+  {
+    label: 'Learning',
+    items: [
+      { href: '/dashboard', label: 'Today', icon: Zap },
+      { href: '/dashboard/roadmaps', label: 'Roadmaps', icon: Map },
+      { href: '/dashboard/upcoming', label: 'Upcoming', icon: CalendarDays },
+      { href: '/dashboard/pending', label: 'Pending', icon: AlertCircle },
+    ],
+  },
+  {
+    label: 'College',
+    items: [
+      { href: '/dashboard/syllabus', label: 'Syllabus', icon: BookOpen },
+      { href: '/dashboard/timetable', label: 'Timetable', icon: Clock },
+      { href: '/dashboard/cgpa', label: 'CGPA', icon: GraduationCap },
+    ],
+  },
+  {
+    label: 'Personal',
+    items: [
+      { href: '/dashboard/gym', label: 'Gym', icon: Dumbbell },
+      { href: '/dashboard/journal', label: 'Journal', icon: PenLine },
+      { href: '/dashboard/ideas', label: 'Ideas', icon: Lightbulb },
+      { href: '/dashboard/achievements', label: 'Achievements', icon: Trophy },
+    ],
+  },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -94,23 +109,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Main nav */}
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {NAV.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href
-            return (
-              <Link key={href} href={href} aria-current={active ? 'page' : undefined} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '9px 12px', borderRadius: 'var(--r)',
-                fontSize: '13px', fontWeight: active ? 500 : 400,
-                color: active ? 'var(--ink)' : 'var(--ink-2)',
-                background: active ? 'var(--bg-hover)' : 'transparent',
-                textDecoration: 'none', transition: 'background 0.15s ease',
-              }}>
-                <Icon size={15} />
-                {label}
-              </Link>
-            )
-          })}
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {NAV_GROUPS.map(group => (
+            <div key={group.label}>
+              <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)', paddingLeft: '12px', marginBottom: '4px' }}>
+                {group.label}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                {group.items.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+                  return (
+                    <Link key={href} href={href} aria-current={active ? 'page' : undefined} style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '8px 12px', borderRadius: 'var(--r)',
+                      fontSize: '13px', fontWeight: active ? 500 : 400,
+                      color: active ? 'var(--ink)' : 'var(--ink-2)',
+                      background: active ? 'var(--bg-hover)' : 'transparent',
+                      textDecoration: 'none', transition: 'background 0.15s ease',
+                    }}>
+                      <Icon size={14} />
+                      {label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Bottom links */}

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trophy, Loader2, Trash2, ExternalLink, X } from 'lucide-react'
+import { Plus, Trophy, Loader2, Trash2, ExternalLink, X, AlertCircle } from 'lucide-react'
 
 type AchType = 'hackathon' | 'certification' | 'oss' | 'project' | 'award'
 
@@ -18,11 +18,11 @@ interface Achievement {
 }
 
 const TYPE_META: Record<AchType, { label: string; bg: string; ink: string; emoji: string }> = {
-  hackathon:     { label: 'Hackathon',     bg: 'var(--lc-bg)',   ink: 'var(--lc-ink)',   emoji: '⚡' },
-  certification: { label: 'Certification', bg: 'var(--dsa-bg)',  ink: 'var(--dsa-ink)',  emoji: '📜' },
-  oss:           { label: 'OSS',           bg: 'var(--java-bg)', ink: 'var(--java-ink)', emoji: '🔧' },
-  project:       { label: 'Project',       bg: 'var(--bg-hover)', ink: 'var(--ink-2)',   emoji: '🛠' },
-  award:         { label: 'Award',         bg: 'var(--java-bg)', ink: 'var(--java-ink)', emoji: '🏆' },
+  hackathon:     { label: 'Hackathon',     bg: 'var(--lc-bg)',    ink: 'var(--lc-ink)',   emoji: '⚡' },
+  certification: { label: 'Certification', bg: 'var(--dsa-bg)',   ink: 'var(--dsa-ink)',  emoji: '📜' },
+  oss:           { label: 'OSS',           bg: 'var(--java-bg)',  ink: 'var(--java-ink)', emoji: '🔧' },
+  project:       { label: 'Project',       bg: 'var(--bg-hover)', ink: 'var(--ink-2)',    emoji: '🛠' },
+  award:         { label: 'Award',         bg: 'var(--java-bg)',  ink: 'var(--java-ink)', emoji: '🏆' },
 }
 
 const TYPES: AchType[] = ['hackathon', 'certification', 'oss', 'project', 'award']
@@ -31,20 +31,38 @@ function emptyAch(): Omit<Achievement, 'id' | 'created_at'> {
   return { type: 'hackathon', title: '', org: '', date: '', result: '', link: '', notes: '' }
 }
 
+function safeHref(url: string): string {
+  if (!url) return '#'
+  if (/^https?:\/\//i.test(url)) return url
+  return `https://${url}`
+}
+
 export default function AchievementsPage() {
   const [items, setItems] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyAch())
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [filter, setFilter] = useState<AchType | 'all'>('all')
 
   const load = useCallback(async () => {
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
-    const { data } = await supabase.from('achievements').select('*').eq('user_id', user.id).order('date', { ascending: false })
+    const { data, error: dbErr } = await supabase
+      .from('achievements')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (dbErr) {
+      setError(dbErr.message)
+      setLoading(false)
+      return
+    }
     setItems((data ?? []) as Achievement[])
     setLoading(false)
   }, [])
@@ -55,35 +73,51 @@ export default function AchievementsPage() {
     setShowForm(false)
     setEditingId(null)
     setForm(emptyAch())
+    setSaveError(null)
   }
 
   function startEdit(a: Achievement) {
     setEditingId(a.id)
     setForm({ type: a.type, title: a.title, org: a.org, date: a.date, result: a.result, link: a.link, notes: a.notes })
+    setSaveError(null)
     setShowForm(true)
   }
 
   async function save() {
     if (!form.title.trim()) return
     setSaving(true)
+    setSaveError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
     const payload = { user_id: user.id, ...form }
+    let dbErr
     if (editingId) {
-      await supabase.from('achievements').update(payload).eq('id', editingId)
+      const { error } = await supabase.from('achievements').update(payload).eq('id', editingId).eq('user_id', user.id)
+      dbErr = error
     } else {
-      await supabase.from('achievements').insert(payload)
+      const { error } = await supabase.from('achievements').insert(payload)
+      dbErr = error
     }
+
+    if (dbErr) {
+      setSaveError(dbErr.message)
+      setSaving(false)
+      return
+    }
+    setSaving(false)
     cancelForm()
     await load()
-    setSaving(false)
   }
 
   async function del(id: string) {
+    if (!window.confirm('Delete this achievement? This cannot be undone.')) return
     const supabase = createClient()
-    await supabase.from('achievements').delete().eq('id', id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error: dbErr } = await supabase.from('achievements').delete().eq('id', id).eq('user_id', user.id)
+    if (dbErr) { setError(dbErr.message); return }
     setItems(prev => prev.filter(a => a.id !== id))
   }
 
@@ -109,6 +143,15 @@ export default function AchievementsPage() {
           </button>
         )}
       </div>
+
+      {/* Global error */}
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', marginBottom: '16px', fontSize: '13px', color: 'var(--rev-ink)' }}>
+          <AlertCircle size={14} />
+          {error}
+          <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rev-ink)', fontSize: '12px', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}>Retry</button>
+        </div>
+      )}
 
       {/* Form */}
       {showForm && (
@@ -165,9 +208,15 @@ export default function AchievementsPage() {
             />
           </div>
 
+          {saveError && (
+            <div style={{ padding: '10px 14px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--rev-ink)', marginBottom: '14px' }}>
+              {saveError}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={save} disabled={!form.title.trim() || saving}
-              style={{ padding: '9px 22px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              style={{ padding: '9px 22px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: !form.title.trim() || saving ? 'default' : 'pointer', opacity: !form.title.trim() ? 0.4 : 1, fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               {saving ? <><Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />Saving…</> : 'Save'}
             </button>
             <button onClick={cancelForm} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', color: 'var(--ink-2)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Cancel</button>
@@ -218,7 +267,7 @@ export default function AchievementsPage() {
                   </p>
                   {a.notes && <p style={{ fontSize: '13px', color: 'var(--ink-2)', marginTop: '8px', lineHeight: 1.5 }}>{a.notes}</p>}
                   {a.link && (
-                    <a href={a.link} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--dsa-ink)', marginTop: '6px', textDecoration: 'none' }}>
+                    <a href={safeHref(a.link)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: 'var(--dsa-ink)', marginTop: '6px', textDecoration: 'none' }}>
                       <ExternalLink size={11} /> View →
                     </a>
                   )}
@@ -232,8 +281,6 @@ export default function AchievementsPage() {
           })}
         </div>
       )}
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

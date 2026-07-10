@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Lightbulb, Star, Archive, Trash2, ExternalLink, Loader2, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Lightbulb, Star, Trash2, ExternalLink, Loader2, X, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
 type Status = 'brainstorm' | 'in-progress' | 'submitted' | 'won' | 'abandoned'
 
@@ -18,11 +18,11 @@ interface Idea {
 }
 
 const STATUS_META: Record<Status, { label: string; bg: string; ink: string }> = {
-  brainstorm:   { label: 'Brainstorm',   bg: 'var(--lc-bg)',   ink: 'var(--lc-ink)' },
+  brainstorm:    { label: 'Brainstorm',  bg: 'var(--lc-bg)',   ink: 'var(--lc-ink)' },
   'in-progress': { label: 'In Progress', bg: 'var(--dsa-bg)',  ink: 'var(--dsa-ink)' },
-  submitted:    { label: 'Submitted',    bg: 'var(--java-bg)', ink: 'var(--java-ink)' },
-  won:          { label: 'Won',          bg: 'var(--java-bg)', ink: 'var(--java-ink)' },
-  abandoned:    { label: 'Abandoned',    bg: 'var(--line)',     ink: 'var(--ink-3)' },
+  submitted:     { label: 'Submitted',   bg: 'var(--java-bg)', ink: 'var(--java-ink)' },
+  won:           { label: 'Won',         bg: 'var(--java-bg)', ink: 'var(--java-ink)' },
+  abandoned:     { label: 'Abandoned',   bg: 'var(--line)',    ink: 'var(--ink-3)' },
 }
 
 const STATUSES: Status[] = ['brainstorm', 'in-progress', 'submitted', 'won', 'abandoned']
@@ -31,23 +31,37 @@ function emptyIdea(): Omit<Idea, 'id' | 'created_at'> {
   return { title: '', problem: '', tech_stack: [], status: 'brainstorm', notes: '', links: [], is_favorite: false }
 }
 
+function safeHref(url: string): string {
+  if (!url) return '#'
+  if (/^https?:\/\//i.test(url)) return url
+  return `https://${url}`
+}
+
 export default function IdeasPage() {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyIdea())
   const [techInput, setTechInput] = useState('')
   const [linkInput, setLinkInput] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<Status | 'all'>('all')
 
   const load = useCallback(async () => {
+    setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
-    const { data } = await supabase.from('ideas').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+    const { data, error: dbErr } = await supabase
+      .from('ideas')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (dbErr) { setError(dbErr.message); setLoading(false); return }
     setIdeas((data ?? []) as Idea[])
     setLoading(false)
   }, [])
@@ -56,7 +70,8 @@ export default function IdeasPage() {
 
   function startEdit(idea: Idea) {
     setEditingId(idea.id)
-    setForm({ title: idea.title, problem: idea.problem, tech_stack: idea.tech_stack, status: idea.status, notes: idea.notes, links: idea.links, is_favorite: idea.is_favorite })
+    setForm({ title: idea.title, problem: idea.problem, tech_stack: [...idea.tech_stack], status: idea.status, notes: idea.notes, links: [...idea.links], is_favorite: idea.is_favorite })
+    setSaveError(null)
     setShowForm(true)
   }
 
@@ -66,47 +81,69 @@ export default function IdeasPage() {
     setForm(emptyIdea())
     setTechInput('')
     setLinkInput('')
+    setSaveError(null)
   }
 
   async function saveIdea() {
     if (!form.title.trim()) return
     setSaving(true)
+    setSaveError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
     const payload = { user_id: user.id, ...form }
+    let dbErr
     if (editingId) {
-      await supabase.from('ideas').update(payload).eq('id', editingId)
+      const { error } = await supabase.from('ideas').update(payload).eq('id', editingId).eq('user_id', user.id)
+      dbErr = error
     } else {
-      await supabase.from('ideas').insert(payload)
+      const { error } = await supabase.from('ideas').insert(payload)
+      dbErr = error
     }
+
+    if (dbErr) {
+      setSaveError(dbErr.message)
+      setSaving(false)
+      return
+    }
+    // Reset saving before closing form so state is clean
+    setSaving(false)
     cancelForm()
     await load()
-    setSaving(false)
   }
 
   async function toggleFavorite(id: string, current: boolean) {
     const supabase = createClient()
-    await supabase.from('ideas').update({ is_favorite: !current }).eq('id', id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error: dbErr } = await supabase.from('ideas').update({ is_favorite: !current }).eq('id', id).eq('user_id', user.id)
+    if (dbErr) { setError(dbErr.message); return }
     setIdeas(prev => prev.map(i => i.id === id ? { ...i, is_favorite: !current } : i))
   }
 
   async function deleteIdea(id: string) {
+    if (!window.confirm('Delete this idea? This cannot be undone.')) return
     const supabase = createClient()
-    await supabase.from('ideas').delete().eq('id', id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error: dbErr } = await supabase.from('ideas').delete().eq('id', id).eq('user_id', user.id)
+    if (dbErr) { setError(dbErr.message); return }
     setIdeas(prev => prev.filter(i => i.id !== id))
+    if (expanded === id) setExpanded(null)
   }
 
   function addTech() {
-    if (!techInput.trim()) return
-    setForm(f => ({ ...f, tech_stack: [...f.tech_stack, techInput.trim()] }))
+    const val = techInput.trim()
+    if (!val) return
+    setForm(f => ({ ...f, tech_stack: [...f.tech_stack, val] }))
     setTechInput('')
   }
 
   function addLink() {
-    if (!linkInput.trim()) return
-    setForm(f => ({ ...f, links: [...f.links, linkInput.trim()] }))
+    const val = linkInput.trim()
+    if (!val) return
+    setForm(f => ({ ...f, links: [...f.links, val] }))
     setLinkInput('')
   }
 
@@ -136,6 +173,14 @@ export default function IdeasPage() {
           </button>
         )}
       </div>
+
+      {/* Global error */}
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', marginBottom: '16px', fontSize: '13px', color: 'var(--rev-ink)' }}>
+          <AlertCircle size={14} /> {error}
+          <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rev-ink)', fontSize: '12px', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}>Retry</button>
+        </div>
+      )}
 
       {/* Add / edit form */}
       {showForm && (
@@ -196,7 +241,7 @@ export default function IdeasPage() {
             <label style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', display: 'block', marginBottom: '6px' }}>Tech Stack</label>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
               {form.tech_stack.map((t, i) => (
-                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--dsa-bg)', color: 'var(--dsa-ink)', borderRadius: 'var(--r)', fontSize: '12px' }}>
+                <span key={`tech-${i}-${t}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', background: 'var(--dsa-bg)', color: 'var(--dsa-ink)', borderRadius: 'var(--r)', fontSize: '12px' }}>
                   {t}
                   <button onClick={() => setForm(f => ({ ...f, tech_stack: f.tech_stack.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dsa-ink)', display: 'flex', padding: 0 }}><X size={10} /></button>
                 </span>
@@ -219,7 +264,7 @@ export default function IdeasPage() {
             <label style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', display: 'block', marginBottom: '6px' }}>Links</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
               {form.links.map((l, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div key={`link-${i}-${l}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '12px', color: 'var(--dsa-ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l}</span>
                   <button onClick={() => setForm(f => ({ ...f, links: f.links.filter((_, j) => j !== i) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', display: 'flex' }}><X size={11} /></button>
                 </div>
@@ -237,11 +282,17 @@ export default function IdeasPage() {
             </div>
           </div>
 
+          {saveError && (
+            <div style={{ padding: '10px 14px', background: 'var(--rev-bg)', border: '1px solid var(--rev-ink)', borderRadius: 'var(--r)', fontSize: '12px', color: 'var(--rev-ink)', marginBottom: '14px' }}>
+              {saveError}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={saveIdea}
               disabled={!form.title.trim() || saving}
-              style={{ padding: '9px 22px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ padding: '9px 22px', background: 'var(--ink)', border: 'none', borderRadius: 'var(--r)', fontSize: '13px', fontWeight: 500, color: 'var(--bg)', cursor: !form.title.trim() || saving ? 'default' : 'pointer', opacity: !form.title.trim() ? 0.4 : 1, fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               {saving ? <><Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} />Saving…</> : 'Save idea'}
             </button>
@@ -288,15 +339,18 @@ export default function IdeasPage() {
             return (
               <div key={idea.id} style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
                 {/* Card header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', cursor: 'pointer', borderBottom: isExpanded ? '1px solid var(--line)' : 'none' }}
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', cursor: 'pointer', borderBottom: isExpanded ? '1px solid var(--line)' : 'none' }}
                   onClick={() => setExpanded(isExpanded ? null : idea.id)}
                 >
                   <span style={{ padding: '3px 10px', borderRadius: 'var(--r)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', background: m.bg, color: m.ink, flexShrink: 0 }}>
                     {m.label}
                   </span>
                   <span style={{ flex: 1, fontSize: '14px', fontWeight: 500, color: 'var(--ink)' }}>{idea.title}</span>
-                  {idea.is_favorite && <Star size={13} color="var(--lc-ink)" fill="var(--lc-ink)" />}
-                  <button onClick={e => { e.stopPropagation(); toggleFavorite(idea.id, idea.is_favorite) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: idea.is_favorite ? 'var(--lc-ink)' : 'var(--ink-3)', display: 'flex' }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleFavorite(idea.id, idea.is_favorite) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: idea.is_favorite ? 'var(--lc-ink)' : 'var(--ink-3)', display: 'flex' }}
+                  >
                     <Star size={14} fill={idea.is_favorite ? 'var(--lc-ink)' : 'none'} />
                   </button>
                   {isExpanded ? <ChevronUp size={14} color="var(--ink-3)" /> : <ChevronDown size={14} color="var(--ink-3)" />}
@@ -309,7 +363,7 @@ export default function IdeasPage() {
                     {idea.tech_stack.length > 0 && (
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
                         {idea.tech_stack.map((t, i) => (
-                          <span key={i} style={{ padding: '3px 10px', background: 'var(--dsa-bg)', color: 'var(--dsa-ink)', borderRadius: 'var(--r)', fontSize: '11px', fontWeight: 600 }}>{t}</span>
+                          <span key={`${t}-${i}`} style={{ padding: '3px 10px', background: 'var(--dsa-bg)', color: 'var(--dsa-ink)', borderRadius: 'var(--r)', fontSize: '11px', fontWeight: 600 }}>{t}</span>
                         ))}
                       </div>
                     )}
@@ -317,7 +371,7 @@ export default function IdeasPage() {
                     {idea.links.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '14px' }}>
                         {idea.links.map((l, i) => (
-                          <a key={i} href={l} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--dsa-ink)', textDecoration: 'none' }}>
+                          <a key={`${l}-${i}`} href={safeHref(l)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--dsa-ink)', textDecoration: 'none' }}>
                             <ExternalLink size={11} />{l}
                           </a>
                         ))}
@@ -336,8 +390,6 @@ export default function IdeasPage() {
           })}
         </div>
       )}
-
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
