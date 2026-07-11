@@ -21,8 +21,14 @@ export default function PushSetup() {
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') return
 
+      // Unsubscribe first so expired subscriptions get renewed automatically
       const existing = await reg.pushManager.getSubscription()
-      if (existing) return // already subscribed
+      if (existing) {
+        const expirationTime = existing.expirationTime
+        const isExpiredSoon = expirationTime !== null && expirationTime - Date.now() < 7 * 24 * 60 * 60 * 1000
+        if (!isExpiredSoon) return // still valid, skip
+        await existing.unsubscribe()
+      }
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,

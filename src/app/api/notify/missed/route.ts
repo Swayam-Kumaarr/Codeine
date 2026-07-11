@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { pushToUser, getAllNotifiableUserIds } from '@/lib/pushToUser'
 
 export async function POST(req: Request) {
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const today = new Date().toISOString().split('T')[0]
 
   const userIds = await getAllNotifiableUserIds(supabase)
