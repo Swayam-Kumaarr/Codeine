@@ -1,6 +1,4 @@
--- Run this in Supabase SQL editor (after schema.sql and subjects-schema.sql)
 
--- Notification preferences per user
 create table public.notification_prefs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null unique,
@@ -16,7 +14,6 @@ create table public.notification_prefs (
 alter table public.notification_prefs enable row level security;
 create policy "Users own their notif_prefs" on public.notification_prefs for all using (auth.uid() = user_id);
 
--- Gym weekly split
 create table public.gym_split (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -29,7 +26,6 @@ create table public.gym_split (
 alter table public.gym_split enable row level security;
 create policy "Users own their gym_split" on public.gym_split for all using (auth.uid() = user_id);
 
--- Gym daily log
 create table public.gym_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -44,11 +40,10 @@ create table public.gym_logs (
 alter table public.gym_logs enable row level security;
 create policy "Users own their gym_logs" on public.gym_logs for all using (auth.uid() = user_id);
 
--- Notification log (sent push history)
 create table public.notification_log (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
-  type text not null, -- 'github' | 'leetcode_daily' | 'leetcode_contest' | 'gym' | 'roadmap'
+  type text not null,
   title text not null,
   body text not null,
   sent_at timestamptz not null default now()

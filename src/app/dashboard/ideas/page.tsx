@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { safeHref } from '@/lib/utils'
 import { Plus, Lightbulb, Star, Trash2, ExternalLink, Loader2, X, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
 type Status = 'brainstorm' | 'in-progress' | 'submitted' | 'won' | 'abandoned'
@@ -31,12 +32,6 @@ function emptyIdea(): Omit<Idea, 'id' | 'created_at'> {
   return { title: '', problem: '', tech_stack: [], status: 'brainstorm', notes: '', links: [], is_favorite: false }
 }
 
-function safeHref(url: string): string {
-  if (!url) return '#'
-  if (/^https?:\/\//i.test(url)) return url
-  return `https://${url}`
-}
-
 export default function IdeasPage() {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,6 +47,7 @@ export default function IdeasPage() {
   const [filterStatus, setFilterStatus] = useState<Status | 'all'>('all')
 
   const load = useCallback(async () => {
+    setLoading(true)
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -147,9 +143,12 @@ export default function IdeasPage() {
     setLinkInput('')
   }
 
-  const filtered = ideas
-    .filter(i => filterStatus === 'all' || i.status === filterStatus)
-    .sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0))
+  const filtered = useMemo(() =>
+    ideas
+      .filter(i => filterStatus === 'all' || i.status === filterStatus)
+      .sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0)),
+    [ideas, filterStatus]
+  )
 
   return (
     <div style={{ padding: '40px', maxWidth: '860px' }}>

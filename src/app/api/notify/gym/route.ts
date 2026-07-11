@@ -1,14 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import webpush from 'web-push'
+import { pushToUser } from '@/lib/pushToUser'
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
-
-// Called daily at configurable time — checks gym split for today, skips Rest days
 export async function POST(req: Request) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -45,7 +38,6 @@ export async function POST(req: Request) {
 
     if (!splitDay || splitDay.label === 'Rest') continue
 
-    // Check if already logged today
     const { data: log } = await supabase
       .from('gym_logs')
       .select('done')
@@ -55,37 +47,18 @@ export async function POST(req: Request) {
 
     if (log?.done) continue
 
-    const { data: sub } = await supabase
-      .from('push_subscriptions')
-      .select('subscription')
-      .eq('user_id', profile.id)
-      .single()
-
-    if (!sub?.subscription) continue
-
     const exercises = (splitDay.exercises as string[]).slice(0, 3).join(', ')
     const title = `💪 ${splitDay.label} day`
     const body = exercises
       ? `Today: ${exercises}${(splitDay.exercises as string[]).length > 3 ? '…' : ''}. Mark it done when you finish.`
       : `${splitDay.label} is on your split today. Go get it.`
 
-    try {
-      await webpush.sendNotification(sub.subscription, JSON.stringify({
-        title,
-        body,
-        tag: 'gym-reminder',
-        url: '/dashboard/gym',
-      }))
+    const pushed = await pushToUser(supabase, profile.id, { title, body, tag: 'gym-reminder', url: '/dashboard/gym' })
 
-      await supabase.from('notification_log').insert({
-        user_id: profile.id,
-        type: 'gym',
-        title,
-        body,
-      })
-
+    if (pushed) {
+      await supabase.from('notification_log').insert({ user_id: profile.id, type: 'gym', title, body })
       sent++
-    } catch {}
+    }
   }
 
   return NextResponse.json({ sent })

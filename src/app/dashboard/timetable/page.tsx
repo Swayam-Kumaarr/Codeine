@@ -51,6 +51,7 @@ export default function TimetablePage() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    setLoading(true)
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()

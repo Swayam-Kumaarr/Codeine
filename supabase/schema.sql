@@ -1,6 +1,4 @@
--- Run this in Supabase SQL editor after creating your project
 
--- Profiles (extends auth.users)
 create table public.profiles (
   id uuid references auth.users on delete cascade primary key,
   name text not null default '',
@@ -20,7 +18,6 @@ create policy "Users own their profile"
   on public.profiles for all
   using (auth.uid() = id);
 
--- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -33,11 +30,10 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Journeys (which roadmap + when started)
 create table public.journeys (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
-  roadmap_id text not null, -- 'java' | 'dsa'
+  roadmap_id text not null,
   started_at date not null default current_date,
   created_at timestamptz not null default now(),
   unique (user_id, roadmap_id)
@@ -48,11 +44,10 @@ create policy "Users own their journeys"
   on public.journeys for all
   using (auth.uid() = user_id);
 
--- Tasks (daily tasks, auto-generated + custom)
 create table public.tasks (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
-  roadmap_id text,        -- null = custom task
+  roadmap_id text,
   topic_number int,
   title text not null,
   description text,
@@ -70,7 +65,6 @@ create policy "Users own their tasks"
 
 create index tasks_user_date on public.tasks (user_id, scheduled_date);
 
--- Streak log (one row per day per user)
 create table public.streak_log (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -85,7 +79,6 @@ create policy "Users own their streak log"
   on public.streak_log for all
   using (auth.uid() = user_id);
 
--- XP log
 create table public.xp_log (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
@@ -99,14 +92,13 @@ create policy "Users own their xp log"
   on public.xp_log for all
   using (auth.uid() = user_id);
 
--- Calendar events
 create table public.calendar_events (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,
   title text not null,
   description text,
   event_date date not null,
-  event_type text not null default 'custom', -- 'exam' | 'deadline' | 'contest' | 'custom'
+  event_type text not null default 'custom',
   created_at timestamptz not null default now()
 );
 
@@ -115,7 +107,6 @@ create policy "Users own their calendar"
   on public.calendar_events for all
   using (auth.uid() = user_id);
 
--- Push subscriptions
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.profiles(id) on delete cascade not null,

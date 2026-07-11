@@ -1,10 +1,4 @@
--- Migration 002: New features
--- Run in Supabase SQL editor (Dashboard → SQL Editor → New query)
--- Safe to run multiple times (uses IF NOT EXISTS / DO blocks)
 
--- ───────────────────────────────────────────
--- CGPA Calculator
--- ───────────────────────────────────────────
 create table if not exists cgpa_semesters (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references profiles(id) on delete cascade,
@@ -27,9 +21,6 @@ do $$ begin
   end if;
 end $$;
 
--- ───────────────────────────────────────────
--- Hackathon Ideas Board
--- ───────────────────────────────────────────
 create table if not exists ideas (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references profiles(id) on delete cascade,
@@ -56,9 +47,6 @@ do $$ begin
   end if;
 end $$;
 
--- ───────────────────────────────────────────
--- Achievement Log
--- ───────────────────────────────────────────
 create table if not exists achievements (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references profiles(id) on delete cascade,
@@ -85,13 +73,10 @@ do $$ begin
   end if;
 end $$;
 
--- ───────────────────────────────────────────
--- College Timetable
--- ───────────────────────────────────────────
 create table if not exists timetable_blocks (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references profiles(id) on delete cascade,
-  day_of_week  int  not null check (day_of_week between 0 and 6),  -- 0=Mon … 5=Sat
+  day_of_week  int  not null check (day_of_week between 0 and 5),
   start_time   time not null,
   end_time     time not null,
   label        text not null,
@@ -113,9 +98,6 @@ do $$ begin
   end if;
 end $$;
 
--- ───────────────────────────────────────────
--- Daily Journal
--- ───────────────────────────────────────────
 create table if not exists journal_entries (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references profiles(id) on delete cascade,
@@ -139,9 +121,6 @@ do $$ begin
   end if;
 end $$;
 
--- ───────────────────────────────────────────
--- Migration 001 tables (if not yet run)
--- ───────────────────────────────────────────
 create table if not exists consent_log (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid references profiles(id) on delete set null,
@@ -182,18 +161,12 @@ create table if not exists custom_journeys (
   unique(user_id, custom_roadmap_id)
 );
 
--- Alter journeys if columns not yet added
 alter table journeys add column if not exists paused_at date;
 alter table journeys add column if not exists days_paused int not null default 0;
 alter table custom_journeys add column if not exists paused_at date;
 alter table custom_journeys add column if not exists days_paused int not null default 0;
 
--- Streak log index
 create index if not exists idx_streak_log_user_date on streak_log(user_id, log_date desc);
-
--- ───────────────────────────────────────────
--- RPC Functions (idempotent)
--- ───────────────────────────────────────────
 
 create or replace function award_xp(p_user_id uuid, p_xp int, p_reason text)
 returns void language plpgsql security definer as $$
@@ -202,10 +175,9 @@ declare
   new_level int;
 begin
   update profiles
-  set xp = xp + p_xp
+  set xp = greatest(0, xp + p_xp)
   where id = p_user_id
   returning xp into new_xp;
-
   new_level := floor(new_xp / 500) + 1;
   update profiles set level = new_level where id = p_user_id;
 end;
@@ -260,3 +232,11 @@ begin
   end if;
 end;
 $$;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'unique_timetable_slot'
+  ) then
+    alter table timetable_blocks add constraint unique_timetable_slot unique (user_id, day_of_week, start_time);
+  end if;
+end $$;

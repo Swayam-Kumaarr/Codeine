@@ -42,3 +42,8 @@ next-env.d.ts
 
 # Claude Code — contains PAT/secrets
 .claude/
+
+# MCP config — contains API tokens
+.mcp.json
+
+.vercel

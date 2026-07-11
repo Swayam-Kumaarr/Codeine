@@ -94,8 +94,8 @@ const S = {
 // ─── Preset roadmap components ──────────────────────────────────────────────────
 
 function TodayFocus({ topic, dayWithinTopic, roadmap }: { topic: Topic; dayWithinTopic: number; roadmap: Roadmap }) {
-  const accent = roadmap.id === 'java' ? '#1A4A3C' : '#3D1F8A'
-  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : '#EDE8F7'
+  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : '#3D1F8A'
+  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : '#EDE8F7'
   const todaySchedule = topic.schedule.find(s => {
     const m = s.days.match(/(\d+)(?:[–-](\d+))?/)
     if (!m) return false
@@ -143,8 +143,8 @@ function TodayFocus({ topic, dayWithinTopic, roadmap }: { topic: Topic; dayWithi
 }
 
 function TopicTimeline({ roadmap, currentDay, expanded, onToggle }: { roadmap: Roadmap; currentDay: number; expanded: boolean; onToggle: () => void }) {
-  const accent = roadmap.id === 'java' ? '#1A4A3C' : '#3D1F8A'
-  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : '#EDE8F7'
+  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : '#3D1F8A'
+  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : '#EDE8F7'
   return (
     <div>
       <button onClick={onToggle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', background: 'transparent', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'inherit' }} aria-expanded={expanded}>
@@ -231,7 +231,7 @@ function ActiveJourney({ roadmap, journey, onPause, onResume, onReset, confirmin
   const pct = Math.round((clampedDay / roadmap.totalDays) * 100)
   const topicsCompleted = roadmap.topics.filter(t => clampedDay > t.endDay).length
   const startDate = new Date(journey.started_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  const accent = roadmap.id === 'java' ? '#1A4A3C' : '#3D1F8A'
+  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : '#3D1F8A'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -675,6 +675,7 @@ export default function RoadmapsPage() {
   const [showCreate, setShowCreate] = useState(false)
 
   const load = useCallback(async () => {
+    setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
@@ -712,7 +713,12 @@ export default function RoadmapsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const today = new Date().toISOString().split('T')[0]
-    await supabase.from('journeys').upsert({ user_id: user.id, roadmap_id: roadmapId, started_at: today, paused_at: null, days_paused: 0 }, { onConflict: 'user_id,roadmap_id' })
+    const { error } = await supabase.from('journeys').upsert({ user_id: user.id, roadmap_id: roadmapId, started_at: today, paused_at: null, days_paused: 0 }, { onConflict: 'user_id,roadmap_id' })
+    if (error) {
+      console.error(error)
+      const { error: fallbackError } = await supabase.from('journeys').upsert({ user_id: user.id, roadmap_id: roadmapId, started_at: today }, { onConflict: 'user_id,roadmap_id' })
+      if (fallbackError) console.error(fallbackError)
+    }
     await load()
   }
 
@@ -753,7 +759,12 @@ export default function RoadmapsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const today = new Date().toISOString().split('T')[0]
-    await supabase.from('custom_journeys').upsert({ user_id: user.id, custom_roadmap_id: roadmapId, started_at: today, paused_at: null, days_paused: 0 }, { onConflict: 'user_id,custom_roadmap_id' })
+    const { error } = await supabase.from('custom_journeys').upsert({ user_id: user.id, custom_roadmap_id: roadmapId, started_at: today, paused_at: null, days_paused: 0 }, { onConflict: 'user_id,custom_roadmap_id' })
+    if (error) {
+      console.error(error)
+      const { error: fallbackError } = await supabase.from('custom_journeys').upsert({ user_id: user.id, custom_roadmap_id: roadmapId, started_at: today }, { onConflict: 'user_id,custom_roadmap_id' })
+      if (fallbackError) console.error(fallbackError)
+    }
     await load()
   }
 

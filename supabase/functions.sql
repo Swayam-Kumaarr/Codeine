@@ -1,21 +1,19 @@
--- Run this AFTER schema.sql
 
--- Award XP to a user
-create or replace function public.award_xp(p_user_id uuid, p_xp int, p_reason text)
+create or replace function award_xp(p_user_id uuid, p_xp int, p_reason text)
 returns void language plpgsql security definer as $$
+declare
+  new_xp int;
+  new_level int;
 begin
-  update public.profiles
-  set
-    xp = xp + p_xp,
-    level = greatest(1, floor((xp + p_xp) / 500) + 1)
-  where id = p_user_id;
-
-  insert into public.xp_log (user_id, xp_gained, reason)
-  values (p_user_id, p_xp, p_reason);
+  update profiles
+  set xp = greatest(0, xp + p_xp)
+  where id = p_user_id
+  returning xp into new_xp;
+  new_level := floor(new_xp / 500) + 1;
+  update profiles set level = new_level where id = p_user_id;
 end;
 $$;
 
--- Update streak (call after marking a task done)
 create or replace function public.update_streak(p_user_id uuid)
 returns void language plpgsql security definer as $$
 declare
@@ -27,13 +25,13 @@ begin
   from public.profiles where id = p_user_id;
 
   if v_last = v_today then
-    return; -- already counted today
+    return;
   end if;
 
   if v_last = v_today - 1 then
     v_streak := v_streak + 1;
   elsif v_last < v_today - 1 or v_last is null then
-    v_streak := 1; -- streak broken or first time
+    v_streak := 1;
   end if;
 
   update public.profiles

@@ -45,15 +45,7 @@ function calcGPA(subjects: Subject[]): number {
 }
 
 function calcCGPA(sems: Semester[]): number {
-  let totalCredits = 0, totalPoints = 0
-  for (const sem of sems) {
-    for (const sub of sem.subjects) {
-      totalCredits += sub.credits
-      totalPoints += sub.credits * sub.grade
-    }
-  }
-  if (!totalCredits) return 0
-  return Math.round((totalPoints / totalCredits) * 100) / 100
+  return calcGPA(sems.flatMap(s => s.subjects))
 }
 
 export default function CGPAPage() {
@@ -67,6 +59,7 @@ export default function CGPAPage() {
   const [targetCredits, setTargetCredits] = useState('20')
 
   const load = useCallback(async () => {
+    setLoading(true)
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()

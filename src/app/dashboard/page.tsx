@@ -7,6 +7,32 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface Journey { roadmap_id: string; started_at: string; paused_at: string | null; days_paused: number }
+interface WeekTask { id: string; title: string; roadmap_id: string | null; scheduled_date: string; done: boolean }
+
+function getRoadmapColor(roadmapId: string | null) {
+  if (roadmapId === 'dsa') return { bg: 'var(--dsa-bg)', ink: 'var(--dsa-ink)' }
+  if (roadmapId === 'java') return { bg: 'var(--java-bg)', ink: 'var(--java-ink)' }
+  if (roadmapId === 'rdbms') return { bg: 'var(--rdbms-bg)', ink: 'var(--rdbms-ink)' }
+  return { bg: 'var(--rev-bg)', ink: 'var(--rev-ink)' }
+}
+
+function getWeekDates(): Date[] {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const day = now.getDay()
+  const diffToMonday = day === 0 ? -6 : 1 - day
+  const monday = new Date(now)
+  monday.setDate(now.getDate() + diffToMonday)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return d
+  })
+}
+
+function toDateStr(d: Date): string {
+  return d.toISOString().split('T')[0]
+}
 
 export default function TodayPage() {
   const { tasks, loading: tasksLoading, markDone, reload: reloadTasks } = useTodaysTasks()
@@ -15,15 +41,48 @@ export default function TodayPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [addingTask, setAddingTask] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskDate, setNewTaskDate] = useState('')
   const [savingTask, setSavingTask] = useState(false)
+  const [weekTasks, setWeekTasks] = useState<WeekTask[]>([])
+
+  interface PendingHW { id: string; title: string; due_date: string | null; subject_name: string; subject_color: string }
+  const [pendingHW, setPendingHW] = useState<PendingHW[]>([])
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      supabase.from('journeys').select('roadmap_id,started_at,paused_at,days_paused').eq('user_id', user.id).then(({ data }) => {
-        setJourneys(data ?? [])
-      })
+      const todayStr = new Date().toISOString().split('T')[0]
+      const weekDates = getWeekDates()
+      const weekStart = toDateStr(weekDates[0])
+      const weekEnd = toDateStr(weekDates[6])
+      const [{ data: journeyData }, { data: hwData }, { data: weekData }] = await Promise.all([
+        supabase.from('journeys').select('roadmap_id,started_at,paused_at,days_paused').eq('user_id', user.id),
+        supabase.from('homework')
+          .select('id, title, due_date, subject_id, subjects(name, color)')
+          .eq('user_id', user.id)
+          .eq('done', false)
+          .not('due_date', 'is', null)
+          .lte('due_date', todayStr)
+          .order('due_date', { ascending: true }),
+        supabase.from('tasks')
+          .select('id, title, roadmap_id, scheduled_date, done')
+          .eq('user_id', user.id)
+          .gte('scheduled_date', weekStart)
+          .lte('scheduled_date', weekEnd),
+      ])
+      setJourneys(journeyData ?? [])
+      setPendingHW(
+        (hwData ?? []).map((h: { id: string; title: string; due_date: string | null; subject_id: string; subjects: { name: string; color: string }[] | { name: string; color: string } | null }) => ({
+          id: h.id,
+          title: h.title,
+          due_date: h.due_date,
+          subject_name: (Array.isArray(h.subjects) ? h.subjects[0]?.name : h.subjects?.name) ?? 'Unknown',
+          subject_color: (Array.isArray(h.subjects) ? h.subjects[0]?.color : h.subjects?.color) ?? 'var(--ink-3)',
+        }))
+      )
+      setWeekTasks(weekData ?? [])
+      setNewTaskDate(todayStr)
     })
   }, [])
 
@@ -47,7 +106,7 @@ export default function TodayPage() {
       pct: Math.min(pct, 100),
       dayNum,
       next: result ? result.topic.name : 'Completed!',
-      color: j.roadmap_id === 'dsa' ? 'var(--dsa-ink)' : 'var(--java-ink)',
+      color: getRoadmapColor(j.roadmap_id).ink,
     }
   }).filter(Boolean) as { name: string; pct: number; dayNum: number; next: string; color: string }[]
 
@@ -72,12 +131,20 @@ export default function TodayPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSavingTask(false); return }
-    const today = new Date().toISOString().split('T')[0]
-    await supabase.from('tasks').insert({ user_id: user.id, title: newTaskTitle.trim(), scheduled_date: today, xp_value: 10 })
+    const todayStr = new Date().toISOString().split('T')[0]
+    const scheduled = newTaskDate || todayStr
+    await supabase.from('tasks').insert({ user_id: user.id, title: newTaskTitle.trim(), scheduled_date: scheduled, xp_value: 10 })
     setNewTaskTitle('')
+    setNewTaskDate(todayStr)
     setAddingTask(false)
     setSavingTask(false)
     reloadTasks()
+  }
+
+  async function dismissHW(hwId: string) {
+    const supabase = createClient()
+    await supabase.from('homework').update({ done: true, done_at: new Date().toISOString() }).eq('id', hwId)
+    setPendingHW(prev => prev.filter(h => h.id !== hwId))
   }
 
   const loading = tasksLoading || profileLoading
@@ -133,14 +200,20 @@ export default function TodayPage() {
 
         {/* Inline add task form */}
         {addingTask && (
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)', display: 'flex', gap: '8px' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <input
               autoFocus
               value={newTaskTitle}
               onChange={e => setNewTaskTitle(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') addCustomTask(); if (e.key === 'Escape') { setAddingTask(false); setNewTaskTitle('') } }}
               placeholder="Task title…"
-              style={{ flex: 1, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '14px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none' }}
+              style={{ flex: 1, minWidth: 180, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '14px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none' }}
+            />
+            <input
+              type="date"
+              value={newTaskDate}
+              onChange={e => setNewTaskDate(e.target.value)}
+              style={{ padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--line-strong)', borderRadius: 'var(--r)', fontSize: '13px', fontFamily: 'var(--font-body)', color: 'var(--ink)', outline: 'none' }}
             />
             <button
               onClick={addCustomTask}
@@ -160,13 +233,11 @@ export default function TodayPage() {
         ) : tasks.length === 0 ? (
           <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-3)', fontSize: '14px' }}>
             No tasks yet.{' '}
-            <a href="/onboarding" style={{ color: 'var(--ink)', borderBottom: '1px solid var(--ink)', textDecoration: 'none' }}>Start a journey →</a>
+            <a href="/dashboard/roadmaps" style={{ color: 'var(--ink)', borderBottom: '1px solid var(--ink)', textDecoration: 'none' }}>Start a journey →</a>
           </div>
         ) : (
           tasks.map((task, i) => {
-            const roadmapColor = task.roadmap_id === 'dsa' ? { bg: 'var(--dsa-bg)', ink: 'var(--dsa-ink)' }
-              : task.roadmap_id === 'java' ? { bg: 'var(--java-bg)', ink: 'var(--java-ink)' }
-              : { bg: 'var(--rev-bg)', ink: 'var(--rev-ink)' }
+            const roadmapColor = getRoadmapColor(task.roadmap_id)
             const isExpanded = expanded === task.id
             const detail = isExpanded ? getTopicDetail(task.roadmap_id) : null
 
@@ -302,9 +373,56 @@ export default function TodayPage() {
         )}
       </div>
 
+      <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: '16px' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)' }}>
+          <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>This week</h2>
+        </div>
+        <div style={{ display: 'flex', overflowX: 'auto', maxHeight: '200px', padding: '16px 20px', gap: '4px' }}>
+          {getWeekDates().map(date => {
+            const dateStr = toDateStr(date)
+            const isToday = dateStr === new Date().toISOString().split('T')[0]
+            const dayTasks = weekTasks.filter(t => t.scheduled_date === dateStr)
+            return (
+              <div key={dateStr} style={{ flex: '1 0 100px', minWidth: '100px', padding: '8px 6px', borderRadius: 'var(--r)', background: isToday ? 'var(--bg-hover)' : 'transparent' }}>
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
+                    {date.toLocaleDateString('en-IN', { weekday: 'short' })}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-head)', fontSize: '16px', fontWeight: 600, color: isToday ? 'var(--ink)' : 'var(--ink-2)' }}>
+                    {date.getDate()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '130px', overflowY: 'auto' }}>
+                  {dayTasks.map(t => {
+                    const colors = t.roadmap_id ? getRoadmapColor(t.roadmap_id) : null
+                    return (
+                      <div
+                        key={t.id}
+                        title={t.title}
+                        style={{
+                          fontSize: '10px', padding: '3px 7px', borderRadius: '999px',
+                          background: colors ? colors.bg : 'var(--bg)',
+                          color: colors ? colors.ink : 'var(--ink-3)',
+                          border: colors ? 'none' : '1px solid var(--line-strong)',
+                          textDecoration: t.done ? 'line-through' : 'none',
+                          opacity: t.done ? 0.5 : 1,
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {t.title}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Roadmap progress */}
       {roadmapProgress.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${roadmapProgress.length}, 1fr)`, gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${roadmapProgress.length}, 1fr)`, gap: '12px', marginBottom: pendingHW.length > 0 ? '16px' : 0 }}>
           {roadmapProgress.map(rp => (
             <div key={rp.name} style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -320,6 +438,39 @@ export default function TodayPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pending homework due today or overdue */}
+      {pendingHW.length > 0 && (
+        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--line)' }}>
+            <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c0392b' }}>
+              Homework Due — {pendingHW.length} pending
+            </h2>
+          </div>
+          {pendingHW.map((hw, i) => {
+            const today = new Date().toISOString().split('T')[0]
+            const overdue = hw.due_date && hw.due_date < today
+            const daysAgo = hw.due_date ? Math.floor((new Date().getTime() - new Date(hw.due_date + 'T00:00:00').getTime()) / 86400000) : 0
+            return (
+              <div key={hw.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', borderBottom: i < pendingHW.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: hw.subject_color }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 500 }}>{hw.title}</p>
+                  <p style={{ fontSize: '11px', color: overdue ? '#c0392b' : 'var(--ink-3)', marginTop: 2 }}>
+                    {hw.subject_name} · {overdue ? `${daysAgo}d overdue` : 'Due today'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => dismissHW(hw.id)}
+                  style={{ padding: '5px 12px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--r)', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}
+                >
+                  Mark done
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

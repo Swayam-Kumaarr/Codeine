@@ -1,4 +1,3 @@
--- Run this in Supabase SQL editor after schema.sql
 
 create table public.subjects (
   id uuid primary key default gen_random_uuid(),

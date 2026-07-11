@@ -22,6 +22,9 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null)
 
+  const [verifyingUsernames, setVerifyingUsernames] = useState(false)
+  const [usernameError, setUsernameError] = useState<string | null>(null)
+
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [pwSaving, setPwSaving] = useState(false)
@@ -60,8 +63,6 @@ export default function SettingsPage() {
     const study_time = `${String(h24).padStart(2, '0')}:${studyMin}`
     const { error } = await supabase.from('profiles').update({
       name,
-      github_username: githubUsername || null,
-      leetcode_username: leetcodeUsername || null,
       study_time,
     }).eq('id', user.id)
     setSaving(false)
@@ -69,6 +70,68 @@ export default function SettingsPage() {
     setSaved(true)
     reload()
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  const githubVerified = !!profile?.github_username
+  const leetcodeVerified = !!profile?.leetcode_username
+  const showUsernameSave = (!githubVerified && githubUsername.trim() !== '') || (!leetcodeVerified && leetcodeUsername.trim() !== '')
+
+  async function saveUsernames() {
+    setUsernameError(null)
+    const updates: { github_username?: string; leetcode_username?: string } = {}
+
+    if (!githubVerified && githubUsername.trim()) {
+      setVerifyingUsernames(true)
+      const uname = githubUsername.trim()
+      let res: Response
+      try {
+        res = await fetch(`https://api.github.com/users/${encodeURIComponent(uname)}`)
+      } catch {
+        setVerifyingUsernames(false)
+        setUsernameError('GitHub user not found')
+        return
+      }
+      if (res.status !== 200) {
+        setVerifyingUsernames(false)
+        setUsernameError('GitHub user not found')
+        return
+      }
+      updates.github_username = uname
+    }
+
+    if (!leetcodeVerified && leetcodeUsername.trim()) {
+      setVerifyingUsernames(true)
+      const uname = leetcodeUsername.trim()
+      let json: { data?: { matchedUser?: { username: string } | null } }
+      try {
+        const res = await fetch('https://leetcode.com/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: `{ matchedUser(username: "${uname}") { username } }` }),
+        })
+        json = await res.json()
+      } catch {
+        setVerifyingUsernames(false)
+        setUsernameError('LeetCode user not found')
+        return
+      }
+      if (!json?.data?.matchedUser) {
+        setVerifyingUsernames(false)
+        setUsernameError('LeetCode user not found')
+        return
+      }
+      updates.leetcode_username = uname
+    }
+
+    setVerifyingUsernames(false)
+    if (Object.keys(updates).length === 0) return
+
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error } = await supabase.from('profiles').update(updates).eq('id', user.id)
+    if (error) { setUsernameError(error.message); return }
+    reload()
   }
 
   async function changeEmail() {
@@ -113,11 +176,27 @@ export default function SettingsPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('tasks').delete().eq('user_id', user.id)
-    await supabase.from('journeys').delete().eq('user_id', user.id)
-    await supabase.from('subjects').delete().eq('user_id', user.id)
-    await supabase.from('gym_split').delete().eq('user_id', user.id)
-    await supabase.from('profiles').delete().eq('id', user.id)
+    const uid = user.id
+    await Promise.all([
+      supabase.from('tasks').delete().eq('user_id', uid),
+      supabase.from('journeys').delete().eq('user_id', uid),
+      supabase.from('custom_journeys').delete().eq('user_id', uid),
+      supabase.from('subjects').delete().eq('user_id', uid),
+      supabase.from('homework').delete().eq('user_id', uid),
+      supabase.from('gym_split').delete().eq('user_id', uid),
+      supabase.from('gym_logs').delete().eq('user_id', uid),
+      supabase.from('timetable_blocks').delete().eq('user_id', uid),
+      supabase.from('journal_entries').delete().eq('user_id', uid),
+      supabase.from('ideas').delete().eq('user_id', uid),
+      supabase.from('achievements').delete().eq('user_id', uid),
+      supabase.from('notification_prefs').delete().eq('user_id', uid),
+      supabase.from('push_subscriptions').delete().eq('user_id', uid),
+      supabase.from('notification_log').delete().eq('user_id', uid),
+      supabase.from('streak_log').delete().eq('user_id', uid),
+      supabase.from('cgpa_semesters').delete().eq('user_id', uid),
+    ])
+    await supabase.from('custom_roadmaps').delete().eq('user_id', uid)
+    await supabase.from('profiles').delete().eq('id', uid)
     await supabase.auth.signOut()
     router.push('/')
   }
@@ -193,26 +272,59 @@ export default function SettingsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
           <div>
             <label style={labelStyle}>GitHub username</label>
-            <input style={inputStyle} value={githubUsername} onChange={e => setGithubUsername(e.target.value)} placeholder="e.g. torvalds" />
+            {githubVerified ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                <span style={{ fontSize: '14px', color: 'var(--ink)' }}>{profile?.github_username}</span>
+                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: '#dcfce7', color: '#166534', letterSpacing: '0.04em' }}>Verified</span>
+              </div>
+            ) : (
+              <input style={inputStyle} value={githubUsername} onChange={e => setGithubUsername(e.target.value)} placeholder="e.g. torvalds" />
+            )}
           </div>
           <div>
             <label style={labelStyle}><Code2 size={11} style={{ display: 'inline', marginRight: 4 }} />LeetCode username</label>
-            <input style={inputStyle} value={leetcodeUsername} onChange={e => setLeetcodeUsername(e.target.value)} placeholder="e.g. neal_wu" />
+            {leetcodeVerified ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
+                <span style={{ fontSize: '14px', color: 'var(--ink)' }}>{profile?.leetcode_username}</span>
+                <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px', background: '#dcfce7', color: '#166534', letterSpacing: '0.04em' }}>Verified</span>
+              </div>
+            ) : (
+              <input style={inputStyle} value={leetcodeUsername} onChange={e => setLeetcodeUsername(e.target.value)} placeholder="e.g. neal_wu" />
+            )}
           </div>
         </div>
-        <button
-          onClick={saveProfile}
-          disabled={saving}
-          style={{
-            padding: '10px 20px', borderRadius: 'var(--r)', border: 'none',
-            background: saved ? '#16a34a' : 'var(--ink)', color: 'var(--bg)',
-            fontSize: '13px', fontWeight: 500, cursor: 'pointer',
-            fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px',
-            transition: 'background 0.2s',
-          }}
-        >
-          {saved ? <><Check size={13} /> Saved</> : saving ? 'Saving…' : 'Save changes'}
-        </button>
+        {usernameError && (
+          <p style={{ fontSize: '12px', color: '#c53030', marginBottom: '12px' }}>{usernameError}</p>
+        )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={saveProfile}
+            disabled={saving}
+            style={{
+              padding: '10px 20px', borderRadius: 'var(--r)', border: 'none',
+              background: saved ? '#16a34a' : 'var(--ink)', color: 'var(--bg)',
+              fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+              fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: '6px',
+              transition: 'background 0.2s',
+            }}
+          >
+            {saved ? <><Check size={13} /> Saved</> : saving ? 'Saving…' : 'Save changes'}
+          </button>
+          {showUsernameSave && (
+            <button
+              onClick={saveUsernames}
+              disabled={verifyingUsernames}
+              style={{
+                padding: '10px 20px', borderRadius: 'var(--r)', border: '1px solid var(--line-strong)',
+                background: 'transparent', color: 'var(--ink)',
+                fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {verifyingUsernames ? 'Verifying…' : 'Verify & save username'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Change email section */}

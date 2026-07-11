@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "499548687639",
+    "project_id": "codeine2007",
+    "storage_bucket": "codeine2007.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499548687639:android:71ef6dad164a71aed6bb52",
+        "android_client_info": {
+          "package_name": "com.swayam.codeine"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACId6yXGQM4XibdUKRbcGoO6H74i7ro7Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

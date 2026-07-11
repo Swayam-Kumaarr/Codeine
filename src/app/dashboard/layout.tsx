@@ -1,10 +1,11 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine } from 'lucide-react'
+import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile, invalidateProfileCache } from '@/lib/hooks/useProfile'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useFCMRegistration } from '@/lib/capacitor/useFCMRegistration'
 
 const NAV_GROUPS = [
   {
@@ -39,6 +40,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router = useRouter()
   const { profile, reload } = useProfile()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  useFCMRegistration()
 
   // Fire login streak at most once per calendar day
   useEffect(() => {
@@ -52,7 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.setItem(key, today)
       reload()
     })
-  }, [])
+  }, [reload])
 
   async function signOut() {
     const supabase = createClient()
@@ -65,9 +68,73 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const xpInLevel = (profile?.xp ?? 0) % 500
   const xpPct = (xpInLevel / 500) * 100
 
+  const BOTTOM_NAV = [
+    { href: '/dashboard', label: 'Today', icon: Zap },
+    { href: '/dashboard/roadmaps', label: 'Roadmaps', icon: Map },
+    { href: '/dashboard/upcoming', label: 'Upcoming', icon: CalendarDays },
+    { href: '/dashboard/syllabus', label: 'Syllabus', icon: BookOpen },
+    { href: '/dashboard/settings', label: 'More', icon: Menu },
+  ]
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
-      <aside style={{
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', flexDirection: 'column' }}>
+
+      {/* Mobile header */}
+      <div className="dash-mobile-header" style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'var(--bg)', borderBottom: '1px solid var(--line)',
+        padding: '12px 16px', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <p style={{ fontFamily: 'var(--font-head)', fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}>Codeine</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--ink-2)', fontVariantNumeric: 'tabular-nums' }}>{profile?.xp ?? 0} XP · Lvl {profile?.level ?? 1}</span>
+          <button onClick={() => setMobileMenuOpen(o => !o)} style={{ background: 'none', border: 'none', color: 'var(--ink)', display: 'flex', alignItems: 'center' }}>
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile full menu drawer */}
+      {mobileMenuOpen && (
+        <div className="dash-mobile-header" style={{
+          position: 'fixed', inset: 0, top: '49px', zIndex: 99,
+          background: 'var(--bg)', overflowY: 'auto', padding: '16px',
+          flexDirection: 'column', gap: '4px',
+        }}>
+          {NAV_GROUPS.map(group => (
+            <div key={group.label} style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)', paddingLeft: '12px', marginBottom: '4px' }}>{group.label}</p>
+              {group.items.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+                return (
+                  <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} style={{
+                    display: 'flex', alignItems: 'center', gap: '12px', padding: '12px',
+                    borderRadius: 'var(--r)', fontSize: '15px', fontWeight: active ? 500 : 400,
+                    color: active ? 'var(--ink)' : 'var(--ink-2)',
+                    background: active ? 'var(--bg-hover)' : 'transparent', textDecoration: 'none',
+                  }}>
+                    <Icon size={16} />{label}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+            <Link href="/dashboard/notifications" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: 'var(--r)', fontSize: '15px', color: 'var(--ink-2)', textDecoration: 'none' }}>
+              <Bell size={16} /> Notifications
+            </Link>
+            <Link href="/dashboard/settings" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: 'var(--r)', fontSize: '15px', color: 'var(--ink-2)', textDecoration: 'none' }}>
+              <Settings size={16} /> Settings
+            </Link>
+            <button onClick={signOut} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: 'var(--r)', fontSize: '15px', color: 'var(--ink-2)', background: 'none', border: 'none', width: '100%', fontFamily: 'var(--font-body)', textAlign: 'left' }}>
+              <LogOut size={16} /> Sign out
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <aside className="dash-sidebar" style={{
         width: '220px', flexShrink: 0,
         borderRight: '1px solid var(--line)',
         position: 'sticky', top: 0, height: '100vh',
@@ -173,9 +240,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <main id="main-content" tabIndex={-1} style={{ flex: 1, minWidth: 0, overflowX: 'hidden' }}>
+      <main id="main-content" className="dash-main" tabIndex={-1} style={{ flex: 1, minWidth: 0, overflowX: 'hidden' }}>
         {children}
       </main>
+      </div>
+
+      {/* Bottom nav for mobile */}
+      <nav className="dash-bottom-nav" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+        background: 'var(--bg)', borderTop: '1px solid var(--line)',
+        padding: '8px 0 env(safe-area-inset-bottom, 8px)',
+        justifyContent: 'space-around', alignItems: 'center',
+      }}>
+        {BOTTOM_NAV.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || (href !== '/dashboard' && href !== '/dashboard/settings' && pathname.startsWith(href))
+          return (
+            <Link key={href} href={href} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+              textDecoration: 'none', padding: '4px 8px',
+              color: active ? 'var(--ink)' : 'var(--ink-3)',
+            }}>
+              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+              <span style={{ fontSize: '9px', fontWeight: active ? 600 : 400, letterSpacing: '0.04em' }}>{label}</span>
+            </Link>
+          )
+        })}
+      </nav>
     </div>
   )
 }

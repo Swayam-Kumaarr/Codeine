@@ -60,9 +60,10 @@ export function useTodaysTasks() {
 
           const { topic, dayWithinTopic } = result
           const schedEntry = topic.schedule.find(s => {
-            const [start, end] = s.days.includes('-')
-              ? s.days.split('-').map(Number)
-              : [Number(s.days), Number(s.days)]
+            const normalized = s.days.replace('–', '-')
+            const [start, end] = normalized.includes('-')
+              ? normalized.split('-').map(Number)
+              : [Number(normalized), Number(normalized)]
             return dayWithinTopic >= start && dayWithinTopic <= end
           })
 
@@ -113,8 +114,12 @@ export function useTodaysTasks() {
     }).eq('id', taskId)
 
     if (newDone) {
-      // Award XP
       await supabase.rpc('award_xp', { p_user_id: user.id, p_xp: task.xp_value, p_reason: `Completed: ${task.title}` }).maybeSingle()
+    } else {
+      // Deduct XP when unchecking (award_xp handles floor at 0 via greatest())
+      await supabase.rpc('award_xp', { p_user_id: user.id, p_xp: -task.xp_value, p_reason: `Unchecked: ${task.title}` }).maybeSingle()
+    }
+    if (newDone) {
 
       // Update streak log — increment tasks_done rather than hardcode 1
       const { data: existing } = await supabase

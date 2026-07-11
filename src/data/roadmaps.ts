@@ -14,7 +14,7 @@ export interface Topic {
 }
 
 export interface Roadmap {
-  id: 'java' | 'dsa'
+  id: 'java' | 'dsa' | 'rdbms'
   name: string
   tagline: string
   totalDays: number
@@ -730,7 +730,163 @@ export const DSA_ROADMAP: Roadmap = {
   topics: buildTopics(dsaTopicsRaw),
 }
 
-export const ALL_ROADMAPS = [JAVA_ROADMAP, DSA_ROADMAP]
+const rdbmsTopicsRaw = [
+  {
+    number: 1, name: 'Introduction to Databases', durationDays: 4,
+    schedule: [
+      { days: '1-2', activity: 'Learn: DBMS vs file system, data models, 3-tier architecture, data independence, DDL/DML/DCL/TCL' },
+      { days: '3-4', activity: 'Learn: schema vs instance, DBA roles, DBMS languages, internal/external/conceptual schemas. Write a 1-page summary.' },
+    ],
+    subtopics: ['Database vs file system — redundancy, inconsistency, security', 'DBMS purpose and advantages', 'Relational, hierarchical, network, object-oriented models', '3-tier architecture: external, conceptual, internal schemas', 'Physical and logical data independence', 'DDL, DML, DCL, TCL — what each does', 'DBA vs application programmer vs end user', 'Database system structure overview'],
+  },
+  {
+    number: 2, name: 'ER Model & Database Design', durationDays: 8,
+    schedule: [
+      { days: '1-2', activity: 'Learn: entities, attributes (simple, composite, multivalued, derived), relationships, cardinality, participation' },
+      { days: '3-4', activity: 'Practice: draw ER diagrams for college management system, hospital system, e-commerce from scratch' },
+      { days: '5-6', activity: 'Learn: weak entities, EER model, specialization, generalization, aggregation, disjoint vs overlapping' },
+      { days: '7-8', activity: 'Practice: convert 3 ER diagrams to relational schemas covering all mapping cases' },
+    ],
+    subtopics: ['Entity, entity type, entity set distinction', 'Simple, composite, multivalued, derived, key attributes', 'Relationship type, relationship set, degree (unary/binary/ternary)', 'Cardinality ratios: 1:1, 1:N, M:N', 'Total vs partial participation', 'Weak entity and identifying relationship', 'ER to relational schema — all 7 mapping cases', 'EER: specialization vs generalization', 'Aggregation', 'Disjoint vs overlapping, total vs partial specialization'],
+  },
+  {
+    number: 3, name: 'Relational Model & Algebra', durationDays: 6,
+    schedule: [
+      { days: '1-2', activity: 'Learn: tuple, domain, attribute, relation, schema, keys (super, candidate, primary, foreign)' },
+      { days: '3-4', activity: 'Learn: relational algebra — SELECT σ, PROJECT π, UNION, INTERSECTION, DIFFERENCE, CARTESIAN PRODUCT, JOIN, DIVISION' },
+      { days: '5-6', activity: 'Practice: write relational algebra expressions for 15 query problems. Convert SQL to relational algebra and vice versa.' },
+    ],
+    subtopics: ['Tuple, domain, attribute, degree, cardinality', 'Relation schema vs relation instance', 'Super key, candidate key, primary key, foreign key, alternate key', 'Entity integrity and referential integrity constraints', 'SELECT operation σ — selection condition syntax', 'PROJECT operation π — removing duplicates', 'UNION, INTERSECTION, SET DIFFERENCE — compatibility rules', 'CARTESIAN PRODUCT and its size', 'JOIN types in relational algebra: natural, theta, equi', 'DIVISION operation — when and why', 'Relational calculus overview (TRC vs DRC)'],
+  },
+  {
+    number: 4, name: 'SQL Fundamentals', durationDays: 10,
+    schedule: [
+      { days: '1-2', activity: 'Learn DDL: CREATE TABLE with all constraints, ALTER TABLE (add/drop/modify column), DROP, TRUNCATE vs DELETE' },
+      { days: '3-4', activity: 'Learn DML: INSERT (single, multiple, from select), UPDATE with WHERE, DELETE with WHERE. Practice on a sample schema.' },
+      { days: '5-6', activity: 'Learn DQL: SELECT with WHERE, comparison operators, BETWEEN, IN, LIKE, IS NULL, logical operators AND/OR/NOT' },
+      { days: '7-8', activity: 'Learn: ORDER BY (ASC/DESC, multiple columns), LIMIT/OFFSET, DISTINCT, aliases (column and table)' },
+      { days: '9-10', activity: 'Practice: solve 20 basic SQL problems on a college database schema. Create the schema from scratch in PostgreSQL.' },
+    ],
+    subtopics: ['CREATE TABLE — column definitions, data types', 'Constraints: NOT NULL, UNIQUE, PRIMARY KEY, FOREIGN KEY, CHECK, DEFAULT', 'ALTER TABLE: ADD COLUMN, DROP COLUMN, MODIFY, RENAME', 'DROP vs TRUNCATE vs DELETE differences', 'INSERT INTO — single row, multiple rows, INSERT INTO SELECT', 'UPDATE with WHERE — updating single and multiple columns', 'DELETE with WHERE — safe deletion patterns', 'SELECT * vs SELECT columns — performance difference', 'WHERE clause — all operators and combinations', 'BETWEEN (inclusive), IN list, NOT IN', 'LIKE with % and _ wildcards', 'IS NULL vs = NULL — why = NULL never works', 'ORDER BY multiple columns, NULL ordering', 'LIMIT and OFFSET for pagination', 'Column and table aliases with AS'],
+  },
+  {
+    number: 5, name: 'Joins & Aggregations', durationDays: 10,
+    schedule: [
+      { days: '1-2', activity: 'Learn: INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL OUTER JOIN — syntax and when to use each. Draw Venn diagrams.' },
+      { days: '3-4', activity: 'Learn: SELF JOIN, CROSS JOIN, multiple table joins. Practice chaining 3-4 table joins.' },
+      { days: '5-6', activity: 'Learn: GROUP BY, HAVING, aggregate functions COUNT/SUM/AVG/MIN/MAX, COUNT(*) vs COUNT(col)' },
+      { days: '7-8', activity: 'Learn: subqueries — scalar, row, table, correlated subqueries. EXISTS vs IN. ANY vs ALL.' },
+      { days: '9-10', activity: 'Practice: solve 25 join and aggregation problems. Include problems requiring multiple joins + aggregation.' },
+    ],
+    subtopics: ['INNER JOIN — only matching rows from both tables', 'LEFT JOIN — all left rows, NULL for unmatched right', 'RIGHT JOIN — all right rows, NULL for unmatched left', 'FULL OUTER JOIN — all rows from both, NULLs for unmatched', 'SELF JOIN — joining a table to itself, use case examples', 'CROSS JOIN — Cartesian product, when it makes sense', 'Joining 3+ tables — order and performance', 'GROUP BY — how it collapses rows', 'HAVING vs WHERE — HAVING filters groups, WHERE filters rows', 'COUNT(*) vs COUNT(col) — NULL handling difference', 'SUM, AVG with NULL values', 'Scalar subquery — returns single value', 'Correlated subquery — references outer query', 'EXISTS vs IN — performance and NULL handling', 'ANY vs ALL in subquery comparisons', 'CASE WHEN THEN ELSE END expressions', 'COALESCE and NULLIF functions'],
+  },
+  {
+    number: 6, name: 'Normalization', durationDays: 9,
+    schedule: [
+      { days: '1-2', activity: 'Learn: functional dependencies, trivial vs non-trivial, closure of attributes, finding all FDs, Armstrong axioms' },
+      { days: '3-4', activity: 'Learn: 1NF, 2NF, 3NF — definitions, violations, how to decompose to fix violations' },
+      { days: '5-6', activity: 'Learn: BCNF and 4NF — definition, when 3NF is not BCNF, multivalued dependencies, decomposition trade-offs' },
+      { days: '7-8', activity: 'Practice: normalize 5 complex unnormalized tables all the way to BCNF. Show each step.' },
+      { days: '9', activity: 'Learn: lossless join decomposition test (Tableau method), dependency preservation — why both matter' },
+    ],
+    subtopics: ['Functional dependency X → Y definition', 'Trivial vs non-trivial FDs', 'Armstrong axioms: reflexivity, augmentation, transitivity', 'Closure of attribute set F+', 'Canonical cover (minimal cover) computation', '1NF: eliminate repeating groups and multivalued attributes', '2NF: eliminate partial dependencies on composite PK', '3NF: eliminate transitive dependencies', 'BCNF: every determinant is a superkey — stricter than 3NF', '4NF: eliminate multivalued dependencies', 'When BCNF decomposition loses dependency preservation', 'Lossless join decomposition verification', 'Minimal cover algorithm step by step', 'Prime vs non-prime attributes'],
+  },
+  {
+    number: 7, name: 'Transactions & Concurrency', durationDays: 8,
+    schedule: [
+      { days: '1-2', activity: 'Learn: ACID properties (all 4 in depth), transaction states, BEGIN/COMMIT/ROLLBACK/SAVEPOINT in PostgreSQL' },
+      { days: '3-4', activity: 'Learn: concurrency problems — lost update, dirty read, unrepeatable read, phantom read. Draw timeline diagrams for each.' },
+      { days: '5-6', activity: 'Learn: isolation levels, locking (shared/exclusive), 2PL, deadlock detection, timestamp ordering' },
+      { days: '7-8', activity: 'Practice: write transactions in PostgreSQL, test different isolation levels, observe phantom reads vs repeatable reads' },
+    ],
+    subtopics: ['Atomicity — all or nothing, rollback on failure', 'Consistency — database moves from one valid state to another', 'Isolation — concurrent transactions do not interfere', 'Durability — committed changes survive crashes', 'Transaction states: active, partially committed, committed, failed, aborted', 'BEGIN TRANSACTION, COMMIT, ROLLBACK in SQL', 'SAVEPOINT and ROLLBACK TO SAVEPOINT', 'Lost update problem', 'Dirty read problem', 'Unrepeatable (non-repeatable) read problem', 'Phantom read problem', 'READ UNCOMMITTED isolation level', 'READ COMMITTED isolation level (default in PostgreSQL)', 'REPEATABLE READ isolation level', 'SERIALIZABLE isolation level', 'Shared lock (S) vs exclusive lock (X)', 'Two-phase locking (2PL) — growing and shrinking phases', 'Strict 2PL', 'Deadlock: detection (wait-for graph) vs prevention', 'Timestamp ordering protocol'],
+  },
+  {
+    number: 8, name: 'Indexing & Query Optimization', durationDays: 8,
+    schedule: [
+      { days: '1-2', activity: 'Learn: what indexes are, B-tree structure, how PostgreSQL uses indexes, clustered vs non-clustered' },
+      { days: '3-4', activity: 'Learn: EXPLAIN and EXPLAIN ANALYZE output, seq scan vs index scan vs bitmap scan, cost estimation' },
+      { days: '5-6', activity: 'Learn: multi-column indexes, partial indexes, covering indexes, index on expressions, hash indexes' },
+      { days: '7-8', activity: 'Practice: create a table with 100k rows, benchmark queries with and without indexes, use EXPLAIN ANALYZE to compare' },
+    ],
+    subtopics: ['Why indexes: full table scan vs index lookup', 'B-tree index structure — height, leaf nodes, search time', 'Clustered index: data physically sorted by index', 'Non-clustered index: separate structure with pointers', 'PostgreSQL: heap (non-clustered) by default, CLUSTER command', 'CREATE INDEX syntax, naming conventions', 'UNIQUE INDEX vs UNIQUE constraint', 'Multi-column (composite) index — column order matters', 'Partial index — index only a subset of rows', 'Covering index — includes all columns query needs', 'Expression index — index on function result', 'Hash index — equality lookups only', 'EXPLAIN output: seq scan, index scan, bitmap index scan', 'EXPLAIN ANALYZE — actual vs estimated rows', 'Cost: startup cost, total cost units', 'When NOT to index: low cardinality, small tables, write-heavy tables', 'Index bloat and VACUUM in PostgreSQL'],
+  },
+  {
+    number: 9, name: 'Views, Functions & Triggers', durationDays: 8,
+    schedule: [
+      { days: '1-2', activity: 'Learn: CREATE VIEW, using views in queries, updatable views, why views (security, simplicity, abstraction)' },
+      { days: '3-4', activity: 'Learn: stored functions in PostgreSQL (PL/pgSQL) — parameters, return types, RETURNS TABLE, control flow' },
+      { days: '5-6', activity: 'Learn: triggers — BEFORE/AFTER, INSERT/UPDATE/DELETE, ROW vs STATEMENT level, trigger functions' },
+      { days: '7-8', activity: 'Practice: create a view for student grade summary, a function to calculate CGPA, a trigger to log every grade change' },
+    ],
+    subtopics: ['CREATE VIEW syntax', 'Using views in SELECT, JOIN, WHERE', 'Updatable views — conditions for updatability', 'MATERIALIZED VIEW — stores result, must REFRESH', 'WITH CHECK OPTION on views', 'PL/pgSQL function structure: DECLARE, BEGIN, END', 'IN, OUT, INOUT parameters', 'RETURNS TABLE for set-returning functions', 'IF, ELSIF, ELSE in PL/pgSQL', 'FOR LOOP, WHILE LOOP in PL/pgSQL', 'RAISE NOTICE and RAISE EXCEPTION for debugging', 'CREATE TRIGGER syntax', 'BEFORE vs AFTER trigger timing', 'FOR EACH ROW vs FOR EACH STATEMENT', 'NEW and OLD in row-level triggers', 'Trigger function returning TRIGGER type', 'Common trigger use cases: audit log, auto-timestamps, derived columns'],
+  },
+  {
+    number: 10, name: 'PostgreSQL Deep Dive', durationDays: 10,
+    schedule: [
+      { days: '1-2', activity: 'Learn: PostgreSQL-specific data types — JSONB, ARRAY, UUID, ENUM, SERIAL/BIGSERIAL, TEXT vs VARCHAR, TIMESTAMPTZ' },
+      { days: '3-4', activity: 'Learn: CTEs (WITH clauses), recursive CTEs for hierarchical data, CTE vs subquery performance' },
+      { days: '5-6', activity: 'Learn: window functions — ROW_NUMBER, RANK, DENSE_RANK, NTILE, LAG, LEAD, FIRST_VALUE, LAST_VALUE, PARTITION BY, ORDER BY in window' },
+      { days: '7-8', activity: 'Learn: full text search (tsvector, tsquery, GIN index), JSONB operators and indexing, pg_dump and restore' },
+      { days: '9-10', activity: 'Practice: build a complete schema using JSONB for metadata, UUIDs as PKs, recursive CTE for category tree, window functions for rankings' },
+    ],
+    subtopics: ['TEXT vs VARCHAR vs CHAR — use TEXT in PostgreSQL', 'NUMERIC vs FLOAT vs REAL — precision differences', 'UUID type and gen_random_uuid()', 'SERIAL and BIGSERIAL vs GENERATED ALWAYS AS IDENTITY', 'TIMESTAMPTZ vs TIMESTAMP — always use TIMESTAMPTZ', 'ARRAY type: declaration, access, array_agg, unnest', 'JSONB vs JSON — JSONB is indexed and binary', 'JSONB operators: ->, ->>, #>, @>, ?', 'GIN index on JSONB columns', 'CREATE TYPE for ENUM', 'WITH clause (CTE) syntax', 'CTE vs subquery — readability and performance', 'Recursive CTE structure: anchor + recursive member + UNION ALL', 'Recursive CTE for tree traversal, org charts', 'Window function syntax: func() OVER (PARTITION BY ... ORDER BY ...)', 'ROW_NUMBER vs RANK vs DENSE_RANK differences', 'LAG and LEAD for accessing previous/next rows', 'NTILE for dividing into buckets', 'SUM/AVG as window functions for running totals', 'tsvector and tsquery for full text search', 'to_tsvector and to_tsquery', 'pg_dump and pg_restore commands', 'psql CLI commands: \\d, \\dt, \\di, \\l, \\c'],
+  },
+  {
+    number: 11, name: 'Advanced SQL for Placements', durationDays: 12,
+    schedule: [
+      { days: '1-2', activity: 'Solve: Nth highest salary, second highest without LIMIT, duplicates detection, gaps in sequences' },
+      { days: '3-4', activity: 'Solve: department-wise top N employees, running totals, moving averages using window functions' },
+      { days: '5-6', activity: 'Solve: consecutive streak problems, islands and gaps, pivot table using CASE WHEN' },
+      { days: '7-8', activity: 'Solve: LeetCode SQL 50 — complete the first 30 problems' },
+      { days: '9-10', activity: 'Solve: LeetCode SQL 50 — complete remaining 20 problems' },
+      { days: '11-12', activity: 'Mock interview: solve 10 SQL problems under timed conditions (2 min each), review all patterns learned' },
+    ],
+    subtopics: ['Nth highest salary — using DENSE_RANK, subquery, LIMIT OFFSET', 'Find duplicates: GROUP BY + HAVING COUNT > 1', 'Delete duplicates keeping one: using ctid in PostgreSQL', 'Gaps in sequences: self join or window function approach', 'Consecutive days/streaks: date arithmetic + window functions', 'Department top N employees: RANK() OVER (PARTITION BY dept)', 'Running total: SUM() OVER (ORDER BY date)', 'Moving average: AVG() OVER (ROWS BETWEEN N PRECEDING AND CURRENT ROW)', 'Pivot with CASE WHEN and GROUP BY', 'Transpose rows to columns', 'Find employees earning more than their manager', 'Customers who never ordered (LEFT JOIN + IS NULL)', 'Median calculation in SQL', 'Percentage of total using window SUM', 'String aggregation: STRING_AGG, ARRAY_AGG'],
+  },
+  {
+    number: 12, name: 'Database Security & Administration', durationDays: 6,
+    schedule: [
+      { days: '1-2', activity: 'Learn: PostgreSQL roles and users, GRANT/REVOKE, row-level security (RLS), connection authentication' },
+      { days: '3-4', activity: 'Learn: backup strategies — pg_dump, pg_dumpall, pg_restore, point-in-time recovery, WAL' },
+      { days: '5-6', activity: 'Learn: connection pooling (PgBouncer concept), VACUUM and ANALYZE, autovacuum, table bloat, EXPLAIN maintenance' },
+    ],
+    subtopics: ['CREATE ROLE vs CREATE USER in PostgreSQL', 'GRANT SELECT, INSERT, UPDATE, DELETE on tables', 'REVOKE permissions', 'Row-Level Security (RLS) — enable, create policies', 'pg_hba.conf — client authentication configuration', 'pg_dump: plain, custom, directory, tar formats', 'pg_restore options', 'Logical vs physical backup', 'Point-in-time recovery concept', 'Write-Ahead Logging (WAL) purpose', 'VACUUM: reclaims dead tuple space', 'ANALYZE: updates query planner statistics', 'Autovacuum settings and monitoring', 'Table bloat: dead rows from UPDATE/DELETE', 'Connection pooling: why needed, PgBouncer concept'],
+  },
+  {
+    number: 13, name: 'NoSQL & Modern Databases', durationDays: 5,
+    schedule: [
+      { days: '1-2', activity: 'Learn: NoSQL types — document, key-value, column-family, graph. CAP theorem. BASE vs ACID.' },
+      { days: '3-4', activity: 'Learn: MongoDB basics — documents, collections, BSON, CRUD operations, indexes, aggregation pipeline' },
+      { days: '5', activity: 'Learn: Redis as cache and session store. When to use SQL vs NoSQL — decision framework for interviews.' },
+    ],
+    subtopics: ['Why NoSQL: horizontal scaling, flexible schema, high write throughput', 'Document store (MongoDB, CouchDB) — JSON-like documents', 'Key-value store (Redis, DynamoDB) — fast lookups by key', 'Column-family store (Cassandra) — wide column model', 'Graph database (Neo4j) — nodes and edges', 'CAP theorem: Consistency, Availability, Partition tolerance — pick 2', 'ACID (SQL) vs BASE (NoSQL) trade-offs', 'MongoDB: db.collection.find(), insertOne, updateOne, deleteOne', 'MongoDB aggregation pipeline: $match, $group, $sort, $project', 'MongoDB indexes: single field, compound, text', 'Redis: SET, GET, EXPIRE, lists, sets, hashes', 'Redis as cache: cache-aside pattern', 'When to choose SQL vs NoSQL decision framework', 'NewSQL databases overview (CockroachDB, TiDB)'],
+  },
+  {
+    number: 14, name: 'Capstone Project & Revision', durationDays: 13,
+    schedule: [
+      { days: '1-2', activity: 'Design: ER diagram for a college ERP system (students, courses, faculty, grades, fees, attendance)' },
+      { days: '3-4', activity: 'Implement: create full schema in PostgreSQL with proper constraints, indexes, and RLS policies' },
+      { days: '5-6', activity: 'Implement: write 20 complex queries covering joins, aggregations, window functions, CTEs' },
+      { days: '7-8', activity: 'Implement: add stored functions (calculate CGPA, fee defaulters), triggers (audit log)' },
+      { days: '9-10', activity: 'Revise: normalization — normalize 3 tables from 1NF to BCNF, show all steps' },
+      { days: '11-12', activity: 'Revise: transactions and concurrency — write examples of each isolation level, observe differences' },
+      { days: '13', activity: 'Final mock: answer 20 interview questions without notes — ER design, SQL, normalization, indexing, transactions' },
+    ],
+    subtopics: ['College ERP schema design from requirements', 'Foreign key relationships across 8+ tables', 'Composite primary keys vs surrogate keys decision', 'Indexing strategy for the ERP schema', 'Row-level security policies for student data', 'CGPA calculation function in PL/pgSQL', 'Attendance trigger: auto-flag if below 75%', 'Fee defaulter report query using window functions', 'EXPLAIN ANALYZE on at least 5 complex queries', 'Revision: all 14 normalization problems', 'Revision: draw transaction timelines for all isolation levels', 'Top 30 DBMS interview questions and model answers', 'Top 20 SQL interview patterns with solutions'],
+  },
+]
+
+export const RDBMS_ROADMAP: Roadmap = {
+  id: 'rdbms',
+  name: 'RDBMS & SQL',
+  tagline: 'College syllabus + placement-ready SQL and PostgreSQL',
+  totalDays: 117,
+  durationLabel: '3.5 months',
+  topics: buildTopics(rdbmsTopicsRaw),
+}
+
+export const ALL_ROADMAPS = [JAVA_ROADMAP, DSA_ROADMAP, RDBMS_ROADMAP]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: given a start date string (ISO), return current day number (1-based)

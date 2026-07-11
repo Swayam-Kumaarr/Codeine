@@ -21,8 +21,9 @@ interface Group {
 }
 
 const ROADMAP_COLOR: Record<string, { bg: string; ink: string }> = {
-  dsa:  { bg: 'var(--dsa-bg)',  ink: 'var(--dsa-ink)' },
-  java: { bg: 'var(--java-bg)', ink: 'var(--java-ink)' },
+  dsa:   { bg: 'var(--dsa-bg)',   ink: 'var(--dsa-ink)' },
+  java:  { bg: 'var(--java-bg)',  ink: 'var(--java-ink)' },
+  rdbms: { bg: 'var(--rdbms-bg)', ink: 'var(--rdbms-ink)' },
 }
 
 function formatGroupLabel(dateStr: string): string {
@@ -137,7 +138,7 @@ export default function UpcomingPage() {
         }}>
           <Calendar size={32} color="var(--ink-3)" style={{ margin: '0 auto 16px' }} />
           <p style={{ fontFamily: 'var(--font-head)', fontSize: '20px', fontWeight: 600, color: 'var(--ink)', marginBottom: '8px' }}>Nothing scheduled yet</p>
-          <p style={{ fontSize: '14px', color: 'var(--ink-3)' }}>Tasks get added automatically as you progress through your journeys.</p>
+          <p style={{ fontSize: '14px', color: 'var(--ink-3)' }}>Roadmap tasks appear on the Today page each day — add custom tasks with a future date from there to see them here.</p>
         </div>
       ) : (
         <>

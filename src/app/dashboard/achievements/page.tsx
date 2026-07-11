@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { safeHref } from '@/lib/utils'
 import { Plus, Trophy, Loader2, Trash2, ExternalLink, X, AlertCircle } from 'lucide-react'
 
 type AchType = 'hackathon' | 'certification' | 'oss' | 'project' | 'award'
@@ -31,12 +32,6 @@ function emptyAch(): Omit<Achievement, 'id' | 'created_at'> {
   return { type: 'hackathon', title: '', org: '', date: '', result: '', link: '', notes: '' }
 }
 
-function safeHref(url: string): string {
-  if (!url) return '#'
-  if (/^https?:\/\//i.test(url)) return url
-  return `https://${url}`
-}
-
 export default function AchievementsPage() {
   const [items, setItems] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +44,7 @@ export default function AchievementsPage() {
   const [filter, setFilter] = useState<AchType | 'all'>('all')
 
   const load = useCallback(async () => {
+    setLoading(true)
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()

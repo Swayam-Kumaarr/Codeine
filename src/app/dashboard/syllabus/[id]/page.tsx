@@ -5,14 +5,24 @@ import { CheckCircle2, Circle, Plus, X, Loader2, ChevronLeft, Calendar } from 'l
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
+interface SubjectTopic { name: string; subtopics: string[] }
+
 interface Subject {
   id: string
   name: string
   code: string
   color: string
   bg_color: string
-  topics: string[]
+  topics: SubjectTopic[]
   topics_done: string[]
+}
+
+function normalizeTopics(raw: unknown[]): SubjectTopic[] {
+  return raw.map(t => {
+    if (typeof t === 'string') return { name: t, subtopics: [] }
+    if (t && typeof t === 'object' && 'name' in t) return { name: (t as SubjectTopic).name, subtopics: (t as SubjectTopic).subtopics ?? [] }
+    return { name: String(t), subtopics: [] }
+  })
 }
 
 interface Homework {
@@ -47,7 +57,7 @@ export default function SubjectPage() {
       supabase.from('homework').select('*').eq('subject_id', id).eq('user_id', user.id).order('due_date', { ascending: true, nullsFirst: false }),
     ])
 
-    setSubject(sub ? { ...sub, topics_done: (sub.topics_done ?? []) as string[] } : null)
+    setSubject(sub ? { ...sub, topics: normalizeTopics(sub.topics ?? []), topics_done: (sub.topics_done ?? []) as string[] } : null)
     setHomework(hw ?? [])
     setLoading(false)
   }
@@ -56,7 +66,7 @@ export default function SubjectPage() {
 
   async function toggleTopic(idx: number) {
     if (!subject) return
-    const topicName = subject.topics[idx]
+    const topicName = subject.topics[idx].name
     const supabase = createClient()
     const already = subject.topics_done.includes(topicName)
     const next = already
@@ -159,28 +169,32 @@ export default function SubjectPage() {
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--ink-3)', fontSize: '13px' }}>No topics added yet.</div>
             ) : (
               subject.topics.map((topic, i) => {
-                const done = subject.topics_done.includes(topic)
+                const done = subject.topics_done.includes(topic.name)
                 return (
-                  <div
-                    key={i}
-                    role="checkbox"
-                    aria-checked={done}
-                    tabIndex={0}
-                    onClick={() => toggleTopic(i)}
-                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggleTopic(i)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '12px',
-                      padding: '12px 16px', cursor: 'pointer',
-                      borderBottom: i < subject.topics.length - 1 ? '1px solid var(--line)' : 'none',
-                      background: done ? subject.bg_color : 'transparent',
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    {done
-                      ? <CheckCircle2 size={15} color={subject.color} style={{ flexShrink: 0 }} />
-                      : <Circle size={15} color="var(--line-strong)" style={{ flexShrink: 0 }} />}
-                    <span style={{ fontSize: '13px', color: done ? subject.color : 'var(--ink)', flex: 1, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.8 : 1 }}>{topic}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--ink-3)' }}>#{i + 1}</span>
+                  <div key={i} style={{ borderBottom: i < subject.topics.length - 1 ? '1px solid var(--line)' : 'none', background: done ? subject.bg_color : 'transparent', transition: 'background 0.15s' }}>
+                    <div
+                      role="checkbox"
+                      aria-checked={done}
+                      tabIndex={0}
+                      onClick={() => toggleTopic(i)}
+                      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && toggleTopic(i)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', cursor: 'pointer' }}
+                    >
+                      {done
+                        ? <CheckCircle2 size={15} color={subject.color} style={{ flexShrink: 0 }} />
+                        : <Circle size={15} color="var(--line-strong)" style={{ flexShrink: 0 }} />}
+                      <span style={{ fontSize: '13px', color: done ? subject.color : 'var(--ink)', flex: 1, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.8 : 1 }}>{topic.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--ink-3)' }}>#{i + 1}</span>
+                    </div>
+                    {topic.subtopics.length > 0 && (
+                      <div style={{ paddingLeft: '40px', paddingBottom: '10px' }}>
+                        {topic.subtopics.map((sub, si) => (
+                          <div key={si} style={{ fontSize: '12px', color: done ? subject.color : 'var(--ink-3)', padding: '2px 0', opacity: done ? 0.7 : 1 }}>
+                            • {sub}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })

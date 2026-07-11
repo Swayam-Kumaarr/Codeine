@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { invalidateProfileCache } from '@/lib/hooks/useProfile'
-import { CheckCircle2, Circle, AlertTriangle, Clock, Loader2 } from 'lucide-react'
+import { CheckCircle2, Circle, AlertTriangle, Clock, Loader2, X } from 'lucide-react'
 
 interface Task {
   id: string
@@ -33,6 +33,7 @@ export default function PendingPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [marking, setMarking] = useState<string | null>(null)
+  const [dismissing, setDismissing] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -75,6 +76,14 @@ export default function PendingPage() {
 
     setTasks(prev => prev.filter(t => t.id !== taskId))
     setMarking(null)
+  }
+
+  async function dismiss(taskId: string) {
+    setDismissing(taskId)
+    const supabase = createClient()
+    await supabase.from('tasks').delete().eq('id', taskId)
+    setTasks(prev => prev.filter(t => t.id !== taskId))
+    setDismissing(null)
   }
 
   const overdueTasks = tasks.filter(t => {
@@ -176,18 +185,34 @@ export default function PendingPage() {
                   {/* XP */}
                   <span style={{ fontSize: '11px', color: 'var(--ink-3)', flexShrink: 0 }}>+{task.xp_value} XP</span>
 
-                  {/* Mark done */}
+                  {/* Dismiss (no XP) */}
                   <button
-                    onClick={() => markDone(task.id)}
-                    disabled={!!marking}
+                    onClick={() => dismiss(task.id)}
+                    disabled={!!marking || !!dismissing}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       width: '32px', height: '32px', borderRadius: '50%',
                       border: '1.5px solid var(--line-strong)',
-                      background: 'transparent', cursor: marking ? 'default' : 'pointer', flexShrink: 0,
+                      background: 'transparent', cursor: (marking || dismissing) ? 'default' : 'pointer', flexShrink: 0,
+                      opacity: dismissing === task.id ? 0.4 : 0.6,
+                    }}
+                    title="Dismiss (no XP)"
+                  >
+                    <X size={12} color="var(--ink-3)" />
+                  </button>
+
+                  {/* Mark done */}
+                  <button
+                    onClick={() => markDone(task.id)}
+                    disabled={!!marking || !!dismissing}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      border: '1.5px solid var(--line-strong)',
+                      background: 'transparent', cursor: (marking || dismissing) ? 'default' : 'pointer', flexShrink: 0,
                       transition: 'all 0.2s',
                     }}
-                    title="Mark done"
+                    title="Mark done (+XP)"
                   >
                     {isMarking
                       ? <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite', color: 'var(--ink-3)' }} />

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { PenLine, Loader2, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 
@@ -28,9 +28,10 @@ export default function JournalPage() {
   const [form, setForm] = useState({ built: '', hard: '', tomorrow: '' })
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
   const load = useCallback(async () => {
+    setLoading(true)
     setError(null)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -163,7 +164,7 @@ export default function JournalPage() {
                 Past entries
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {pastEntries.slice(0, 7).map(e => {
+                {pastEntries.map(e => {
                   const isExpanded = expanded === e.id
                   return (
                     <div key={e.id} style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
