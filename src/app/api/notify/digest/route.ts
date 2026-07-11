@@ -16,15 +16,35 @@ export async function POST(req: Request) {
 
   let sent = 0
   for (const user_id of userIds) {
-    const { count } = await supabase
+    // Check notification prefs
+    const { data: prefs } = await supabase
+      .from('notification_prefs')
+      .select('roadmap_daily')
+      .eq('user_id', user_id)
+      .single()
+    if (prefs && !prefs.roadmap_daily) continue
+
+    // Tasks are generated lazily on app open — check journeys instead
+    // so the message is accurate even before user opens the app today
+    const { count: journeyCount } = await supabase
+      .from('journeys')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user_id)
+      .is('paused_at', null)
+
+    // Also check for any manually-added tasks for today
+    const { count: manualCount } = await supabase
       .from('tasks')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user_id)
       .eq('scheduled_date', today)
+      .is('roadmap_id', null)
 
-    const body = count
-      ? `You have ${count} task${count !== 1 ? 's' : ''} scheduled today. Let's get it.`
-      : 'No tasks scheduled today. Take a rest or add something new.'
+    const total = (journeyCount ?? 0) + (manualCount ?? 0)
+
+    const body = total > 0
+      ? `${journeyCount ? `${journeyCount} roadmap task${journeyCount !== 1 ? 's' : ''}` : ''}${journeyCount && manualCount ? ' + ' : ''}${manualCount ? `${manualCount} custom task${manualCount !== 1 ? 's' : ''}` : ''} waiting today. Open Codeine and get it done.`
+      : 'No tasks today — good time to add something new or start a roadmap.'
 
     const pushed = await pushToUser(supabase, user_id, {
       title: '☀️ Good morning — Codeine',

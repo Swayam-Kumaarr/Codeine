@@ -133,11 +133,17 @@ export default function TodayPage() {
     if (!user) { setSavingTask(false); return }
     const todayStr = new Date().toISOString().split('T')[0]
     const scheduled = newTaskDate || todayStr
-    await supabase.from('tasks').insert({ user_id: user.id, title: newTaskTitle.trim(), scheduled_date: scheduled, xp_value: 10 })
+    const { data: newTask } = await supabase.from('tasks').insert({
+      user_id: user.id, title: newTaskTitle.trim(), scheduled_date: scheduled, xp_value: 10,
+    }).select('id, title, roadmap_id, scheduled_date, done').single()
     setNewTaskTitle('')
     setNewTaskDate(todayStr)
     setAddingTask(false)
     setSavingTask(false)
+    // Refresh week calendar to show new task immediately
+    if (newTask) {
+      setWeekTasks(prev => [...prev, newTask as WeekTask])
+    }
     reloadTasks()
   }
 

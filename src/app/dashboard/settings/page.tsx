@@ -191,6 +191,7 @@ export default function SettingsPage() {
       supabase.from('achievements').delete().eq('user_id', uid),
       supabase.from('notification_prefs').delete().eq('user_id', uid),
       supabase.from('push_subscriptions').delete().eq('user_id', uid),
+      supabase.from('push_tokens').delete().eq('user_id', uid),
       supabase.from('notification_log').delete().eq('user_id', uid),
       supabase.from('streak_log').delete().eq('user_id', uid),
       supabase.from('cgpa_semesters').delete().eq('user_id', uid),
