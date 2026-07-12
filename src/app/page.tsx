@@ -245,12 +245,12 @@ export default function Page() {
     })
   }, [router])
 
-  // Lenis smooth scroll
+  // Lenis smooth scroll — desktop only (breaks WebView touch scroll)
   useEffect(() => {
+    if (window.matchMedia('(pointer: coarse)').matches) return
     const lenis = new Lenis({ duration: 1.2, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
     const raf = (time: number) => { lenis.raf(time); requestAnimationFrame(raf) }
     requestAnimationFrame(raf)
-
     return () => lenis.destroy()
   }, [])
 

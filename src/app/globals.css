@@ -534,6 +534,11 @@ body {
 
 /* ── Mobile layout ───────────────────────────────────────── */
 @media (max-width: 768px) {
+  /* Landing page: hide desktop sidebar, make content full-width */
+  .layout { flex-direction: column; }
+  .sidebar { display: none !important; }
+  .content { width: 100%; min-width: 0; }
+
   .dash-sidebar { display: none !important; }
   .dash-mobile-header { display: flex !important; }
   .dash-bottom-nav { display: flex !important; }
