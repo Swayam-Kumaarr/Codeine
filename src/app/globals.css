@@ -576,6 +576,14 @@ body {
 
   /* Tables and wide elements scroll horizontally inside their own box */
   table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* CGPA semester header: wrap on small screens so text doesn't squish */
+  .cgpa-sem-header { flex-wrap: wrap; gap: 6px !important; }
+  .cgpa-sem-header span:nth-child(2) { width: 100%; order: 3; font-size: 12px !important; }
+
+  /* Gym day row: shrink day column, allow wrapping */
+  .gym-day-row { gap: 10px !important; padding: 12px 14px !important; flex-wrap: wrap; }
+  .gym-day-name { width: 72px !important; }
 }
 
 @media (min-width: 769px) {

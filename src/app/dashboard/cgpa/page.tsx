@@ -304,6 +304,7 @@ export default function CGPAPage() {
                   {/* Sem header */}
                   <div
                     onClick={() => setExpanded(isExpanded ? null : sem.id)}
+                    className="cgpa-sem-header"
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', cursor: 'pointer', borderBottom: isExpanded ? '1px solid var(--line)' : 'none' }}
                   >
                     <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', minWidth: '60px' }}>Sem {sem.sem_number}</span>

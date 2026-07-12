@@ -201,13 +201,13 @@ export default function GymPage() {
           return (
             <div key={day.day_of_week} style={{ borderBottom: idx < split.length - 1 ? '1px solid var(--line)' : 'none' }}>
               {/* Main row */}
-              <div style={{
+              <div className="gym-day-row" style={{
                 display: 'flex', alignItems: 'center', gap: '16px',
                 padding: '14px 20px',
                 background: isToday ? (isRestDay ? 'transparent' : 'rgba(122,32,32,0.04)') : 'transparent',
               }}>
                 {/* Day name */}
-                <div style={{ width: '96px', flexShrink: 0 }}>
+                <div className="gym-day-name" style={{ width: '96px', flexShrink: 0 }}>
                   <p style={{ fontSize: '13px', fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--ink)' : 'var(--ink-2)' }}>
                     {DAYS[day.day_of_week]}
                   </p>
