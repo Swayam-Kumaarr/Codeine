@@ -15,6 +15,7 @@ const NAV_GROUPS = [
       { href: '/dashboard/roadmaps', label: 'Roadmaps', icon: Map },
       { href: '/dashboard/upcoming', label: 'Upcoming', icon: CalendarDays },
       { href: '/dashboard/pending', label: 'Pending', icon: AlertCircle },
+      { href: '/dashboard/leetcode', label: 'LeetCode', icon: Trophy },
     ],
   },
   {

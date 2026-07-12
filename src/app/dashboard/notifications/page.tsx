@@ -51,6 +51,12 @@ export default function NotificationsPage() {
   const [pushState, setPushState] = useState<'checking' | 'unsupported' | 'denied' | 'not-subscribed' | 'subscribed'>('checking')
 
   async function checkPushState() {
+    // In Capacitor APK, FCM handles notifications natively — VAPID/PushManager not needed
+    const isCapacitor = !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
+    if (isCapacitor) {
+      setPushState('subscribed')
+      return
+    }
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       setPushState('unsupported')
       return
@@ -214,7 +220,10 @@ export default function NotificationsPage() {
           borderRadius: 'var(--r)', marginBottom: '24px', fontSize: '13px', color: 'var(--java-ink)',
         }}>
           <CheckCircle2 size={14} />
-          Push notifications active on this device. Add to home screen on your phone for native alerts.
+          {typeof window !== 'undefined' && !!(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()
+            ? 'FCM push notifications active — you\'ll receive alerts even when the app is closed.'
+            : 'Push notifications active on this device. Add to home screen on your phone for native alerts.'
+          }
         </div>
       )}
 
