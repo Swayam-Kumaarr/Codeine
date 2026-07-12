@@ -3,6 +3,9 @@ import { useEffect } from 'react'
 
 export default function CursorInit() {
   useEffect(() => {
+    // Skip cursor entirely on touch/mobile devices
+    if (window.matchMedia('(pointer: coarse)').matches) return
+
     const d = document.createElement('div')
     d.id = 'cur-dot'
     d.setAttribute('aria-hidden', 'true')

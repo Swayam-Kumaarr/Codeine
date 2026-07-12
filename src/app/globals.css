@@ -29,8 +29,12 @@
 }
 
 /* ── Reset ───────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; cursor: none !important; }
-a, button, input, select, textarea, [role="button"] { cursor: none !important; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Custom cursor on desktop only — touch devices get normal pointer */
+@media (pointer: fine) {
+  *, *::before, *::after { cursor: none !important; }
+  a, button, input, select, textarea, [role="button"] { cursor: none !important; }
+}
 
 /* ── Focus ring (keyboard nav) ───────────────────────────── */
 :focus { outline: none; }
@@ -54,7 +58,7 @@ body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  /* overflow-x:hidden on body kills vertical scroll in Android WebView — removed */
 }
 
 /* ── Custom cursor ───────────────────────────────────────── */
@@ -530,12 +534,28 @@ body {
   .dash-sidebar { display: none !important; }
   .dash-mobile-header { display: flex !important; }
   .dash-bottom-nav { display: flex !important; }
-  .dash-main { padding-bottom: 72px !important; }
 
-  #main-content > div:first-child {
-    padding: 16px !important;
-    max-width: 100% !important;
+  /* Main content area: fill remaining height and scroll vertically */
+  .dash-main {
+    padding-bottom: 80px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
+
+  /* Page content: mobile padding, full width, no overflow clip */
+  #main-content > div:first-child {
+    padding: 16px 14px 24px !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Stat cards: 2 columns on mobile */
+  .dash-main [style*="minmax(140px"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Tables and wide elements scroll horizontally inside their own box */
+  table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
 @media (min-width: 769px) {
