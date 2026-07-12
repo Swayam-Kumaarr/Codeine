@@ -537,7 +537,19 @@ body {
   /* Landing page: hide desktop sidebar, make content full-width */
   .layout { flex-direction: column; }
   .sidebar { display: none !important; }
-  .content { width: 100%; min-width: 0; }
+  .content { width: 100%; min-width: 0; overflow-x: hidden; }
+
+  /* Hide wide desktop-only demo sections on mobile */
+  .week-nav,
+  .timetable-header,
+  .timetable-body,
+  .quick-section { display: none !important; }
+
+  /* Hero section: full width, readable padding */
+  .content > div:first-child {
+    padding: 32px 20px 24px !important;
+    max-width: 100% !important;
+  }
 
   .dash-sidebar { display: none !important; }
   .dash-mobile-header { display: flex !important; }
