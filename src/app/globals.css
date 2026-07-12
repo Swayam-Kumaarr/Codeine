@@ -50,7 +50,10 @@ select:focus-visible {
   outline: 2px solid var(--ink) !important;
   outline-offset: 2px;
 }
-html { height: 100%; }
+html {
+  min-height: 100%;        /* grow with content, not locked to viewport height */
+  overflow-x: hidden;      /* clip horizontal overflow (safe on html, unlike body) */
+}
 body {
   background: var(--bg);
   color: var(--ink);

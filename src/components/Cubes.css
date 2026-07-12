@@ -39,6 +39,7 @@
   right: -36px;
   bottom: -36px;
   left: -36px;
+  overflow: hidden;
 }
 
 .default-animation .cube-face {
