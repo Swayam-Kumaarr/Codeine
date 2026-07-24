@@ -94,8 +94,8 @@ const S = {
 // ─── Preset roadmap components ──────────────────────────────────────────────────
 
 function TodayFocus({ topic, dayWithinTopic, roadmap }: { topic: Topic; dayWithinTopic: number; roadmap: Roadmap }) {
-  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : '#3D1F8A'
-  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : '#EDE8F7'
+  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : roadmap.id === 'coa' ? '#7A2020' : '#3D1F8A'
+  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : roadmap.id === 'coa' ? '#F2E8E8' : '#EDE8F7'
   const todaySchedule = topic.schedule.find(s => {
     const m = s.days.match(/(\d+)(?:[–-](\d+))?/)
     if (!m) return false
@@ -143,8 +143,8 @@ function TodayFocus({ topic, dayWithinTopic, roadmap }: { topic: Topic; dayWithi
 }
 
 function TopicTimeline({ roadmap, currentDay, expanded, onToggle }: { roadmap: Roadmap; currentDay: number; expanded: boolean; onToggle: () => void }) {
-  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : '#3D1F8A'
-  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : '#EDE8F7'
+  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : roadmap.id === 'coa' ? '#7A2020' : '#3D1F8A'
+  const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : roadmap.id === 'coa' ? '#F2E8E8' : '#EDE8F7'
   return (
     <div>
       <button onClick={onToggle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', background: 'transparent', border: 'none', borderTop: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'inherit' }} aria-expanded={expanded}>
@@ -231,7 +231,7 @@ function ActiveJourney({ roadmap, journey, onPause, onResume, onReset, confirmin
   const pct = Math.round((clampedDay / roadmap.totalDays) * 100)
   const topicsCompleted = roadmap.topics.filter(t => clampedDay > t.endDay).length
   const startDate = new Date(journey.started_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : '#3D1F8A'
+  const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : roadmap.id === 'coa' ? '#7A2020' : '#3D1F8A'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
