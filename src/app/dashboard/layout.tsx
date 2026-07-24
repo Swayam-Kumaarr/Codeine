@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine, Menu, X } from 'lucide-react'
+import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine, Menu, X, Wallet } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile, invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { useEffect, useState } from 'react'
@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     label: 'Personal',
     items: [
       { href: '/dashboard/gym', label: 'Gym', icon: Dumbbell },
+      { href: '/dashboard/budget', label: 'Budget', icon: Wallet },
       { href: '/dashboard/journal', label: 'Journal', icon: PenLine },
       { href: '/dashboard/ideas', label: 'Ideas', icon: Lightbulb },
       { href: '/dashboard/achievements', label: 'Achievements', icon: Trophy },
