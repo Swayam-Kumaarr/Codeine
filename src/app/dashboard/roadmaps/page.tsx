@@ -142,7 +142,11 @@ function TodayFocus({ topic, dayWithinTopic, roadmap }: { topic: Topic; dayWithi
   )
 }
 
-function TopicTimeline({ roadmap, currentDay, expanded, onToggle }: { roadmap: Roadmap; currentDay: number; expanded: boolean; onToggle: () => void }) {
+function TopicTimeline({ roadmap, effectiveDay, progress, onMarkDone, onRevise, expanded, onToggle }: {
+  roadmap: Roadmap; effectiveDay: number; progress: Record<number, number>
+  onMarkDone: (n: number) => void; onRevise: (n: number) => void
+  expanded: boolean; onToggle: () => void
+}) {
   const accent = roadmap.id === 'java' ? '#1A4A3C' : roadmap.id === 'rdbms' ? '#1A2F6A' : roadmap.id === 'coa' ? '#7A2020' : '#3D1F8A'
   const accentMuted = roadmap.id === 'java' ? '#E0EDEA' : roadmap.id === 'rdbms' ? '#E8EEF8' : roadmap.id === 'coa' ? '#F2E8E8' : '#EDE8F7'
   return (
@@ -154,10 +158,11 @@ function TopicTimeline({ roadmap, currentDay, expanded, onToggle }: { roadmap: R
       {expanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--line)', border: '1px solid var(--line)' }}>
           {roadmap.topics.map(topic => {
-            const isDone = currentDay > topic.endDay
-            const isCurrent = currentDay >= topic.startDay && currentDay <= topic.endDay
-            const isLocked = currentDay < topic.startDay
-            return <PresetTopicRow key={topic.number} topic={topic} isDone={isDone} isCurrent={isCurrent} isLocked={isLocked} accent={accent} accentMuted={accentMuted} />
+            const ticks = progress[topic.number] ?? 0
+            const isDone = ticks >= 1 || effectiveDay > topic.endDay
+            const isCurrent = !isDone && effectiveDay >= topic.startDay
+            const isLocked = !isDone && !isCurrent
+            return <PresetTopicRow key={topic.number} topic={topic} isDone={isDone} isCurrent={isCurrent} isLocked={isLocked} ticks={ticks} accent={accent} accentMuted={accentMuted} onMarkDone={() => onMarkDone(topic.number)} onRevise={() => onRevise(topic.number)} />
           })}
         </div>
       )}
@@ -165,28 +170,52 @@ function TopicTimeline({ roadmap, currentDay, expanded, onToggle }: { roadmap: R
   )
 }
 
-function PresetTopicRow({ topic, isDone, isCurrent, isLocked, accent, accentMuted }: { topic: Topic; isDone: boolean; isCurrent: boolean; isLocked: boolean; accent: string; accentMuted: string }) {
+function PresetTopicRow({ topic, isDone, isCurrent, isLocked, ticks, accent, accentMuted, onMarkDone, onRevise }: {
+  topic: Topic; isDone: boolean; isCurrent: boolean; isLocked: boolean; ticks: number
+  accent: string; accentMuted: string; onMarkDone: () => void; onRevise: () => void
+}) {
   const [open, setOpen] = useState(isCurrent)
+  const canOpen = !isLocked || open
+  const tickBadge = ticks >= 2 ? '✓✓ Revised' : ticks === 1 ? '✓ Done' : null
+  const tickColor = ticks >= 2 ? '#2563EB' : '#22c55e'
+
   return (
     <div style={{ background: isCurrent ? accentMuted : 'var(--bg)' }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'transparent', border: 'none', cursor: isLocked ? 'default' : 'pointer', fontFamily: 'inherit', textAlign: 'left' }} aria-expanded={open} disabled={isLocked && !open}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: isDone ? '#22c55e' : isCurrent ? accent : 'var(--line-strong)' }} />
+      <button onClick={() => canOpen && setOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', background: 'transparent', border: 'none', cursor: canOpen ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left' }} aria-expanded={open}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: isDone ? (ticks >= 2 ? '#2563EB' : '#22c55e') : isCurrent ? accent : 'var(--line-strong)' }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, fontWeight: isCurrent ? 600 : 500, color: isLocked ? 'var(--ink-3)' : 'var(--ink)', textDecoration: isDone ? 'line-through' : 'none' }}>T{topic.number}: {topic.name}</span>
             {isCurrent && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: accent, color: '#fff', letterSpacing: '0.06em' }}>ACTIVE</span>}
-            {isDone && <span style={{ fontSize: 11, color: '#22c55e' }}>✓ Done</span>}
+            {tickBadge && <span style={{ fontSize: 11, color: tickColor, fontWeight: 600 }}>{tickBadge}</span>}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 12, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>Day {topic.startDay}–{topic.endDay}</div>
           <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{topic.durationDays} days</div>
         </div>
-        {!isLocked && <span style={{ fontSize: 14, color: 'var(--ink-3)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 200ms', flexShrink: 0 }}>↓</span>}
+        {canOpen && <span style={{ fontSize: 14, color: 'var(--ink-3)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 200ms', flexShrink: 0 }}>↓</span>}
       </button>
-      {open && !isLocked && (
+      {open && canOpen && (
         <div style={{ padding: '0 20px 20px 44px', borderTop: '1px solid var(--line)' }}>
-          <div style={{ marginBottom: 16, paddingTop: 16 }}>
+          {/* Action buttons */}
+          <div style={{ paddingTop: 16, marginBottom: 16, display: 'flex', gap: 8 }}>
+            {isCurrent && (
+              <button onClick={onMarkDone} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: accent, color: '#fff', border: 'none', borderRadius: 3, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ✓ Mark done — skip to next
+              </button>
+            )}
+            {isDone && ticks < 2 && (
+              <button onClick={onRevise} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'transparent', color: '#2563EB', border: '1px solid rgba(37,99,235,0.4)', borderRadius: 3, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ↺ Mark revised
+              </button>
+            )}
+            {ticks >= 2 && (
+              <span style={{ fontSize: 12, color: '#2563EB', fontWeight: 500, padding: '7px 0' }}>✓✓ Revised — topic complete</span>
+            )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: 10 }}>Schedule</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {topic.schedule.map((s, i) => (
@@ -214,9 +243,10 @@ function PresetTopicRow({ topic, isDone, isCurrent, isLocked, accent, accentMute
   )
 }
 
-function ActiveJourney({ roadmap, journey, onPause, onResume, onReset, confirmingReset, onCancelReset }: {
+function ActiveJourney({ roadmap, journey, effectiveDay, onPause, onResume, onReset, confirmingReset, onCancelReset }: {
   roadmap: Roadmap
   journey: Journey
+  effectiveDay: number
   onPause: () => void
   onResume: () => void
   onReset: () => void
@@ -224,7 +254,7 @@ function ActiveJourney({ roadmap, journey, onPause, onResume, onReset, confirmin
   onCancelReset: () => void
 }) {
   const isPaused = !!journey.paused_at
-  const dayNum = getActiveDayNumber(journey.started_at, journey.days_paused, journey.paused_at)
+  const dayNum = effectiveDay
   const isComplete = dayNum > roadmap.totalDays
   const clampedDay = Math.min(dayNum, roadmap.totalDays)
   const { topic, dayWithinTopic } = getCurrentTopic(roadmap, clampedDay)
@@ -298,18 +328,25 @@ function NotStarted({ roadmap, onStart }: { roadmap: Roadmap; onStart: () => voi
   )
 }
 
-function RoadmapPanel({ roadmap, journey, onStart, onPause, onResume, onReset, confirmingReset, onCancelReset }: {
+function RoadmapPanel({ roadmap, journey, progress, onStart, onPause, onResume, onReset, onMarkDone, onRevise, confirmingReset, onCancelReset }: {
   roadmap: Roadmap
   journey: Journey | undefined
+  progress: Record<number, number>
   onStart: (id: string) => void
   onPause: (id: string) => void
   onResume: (id: string) => void
   onReset: (id: string) => void
+  onMarkDone: (roadmapId: string, topicNumber: number) => void
+  onRevise: (roadmapId: string, topicNumber: number) => void
   confirmingReset: boolean
   onCancelReset: () => void
 }) {
   const [timelineOpen, setTimelineOpen] = useState(false)
-  const currentDay = journey ? getActiveDayNumber(journey.started_at, journey.days_paused, journey.paused_at) : 0
+  const baseDayNum = journey ? getActiveDayNumber(journey.started_at, journey.days_paused, journey.paused_at) : 0
+
+  // Advance day past any manually completed topics
+  const maxDoneEndDay = roadmap.topics.reduce((max, t) => (progress[t.number] ?? 0) >= 1 ? Math.max(max, t.endDay) : max, 0)
+  const effectiveDay = Math.max(baseDayNum, maxDoneEndDay > 0 ? maxDoneEndDay + 1 : 0)
 
   return (
     <div style={S.card}>
@@ -320,6 +357,7 @@ function RoadmapPanel({ roadmap, journey, onStart, onPause, onResume, onReset, c
         <ActiveJourney
           roadmap={roadmap}
           journey={journey}
+          effectiveDay={effectiveDay}
           onPause={() => onPause(roadmap.id)}
           onResume={() => onResume(roadmap.id)}
           onReset={() => onReset(roadmap.id)}
@@ -330,7 +368,7 @@ function RoadmapPanel({ roadmap, journey, onStart, onPause, onResume, onReset, c
         <NotStarted roadmap={roadmap} onStart={() => onStart(roadmap.id)} />
       )}
 
-      <TopicTimeline roadmap={roadmap} currentDay={currentDay} expanded={timelineOpen} onToggle={() => setTimelineOpen(o => !o)} />
+      <TopicTimeline roadmap={roadmap} effectiveDay={effectiveDay} progress={progress} onMarkDone={n => onMarkDone(roadmap.id, n)} onRevise={n => onRevise(roadmap.id, n)} expanded={timelineOpen} onToggle={() => setTimelineOpen(o => !o)} />
     </div>
   )
 }
@@ -669,6 +707,8 @@ export default function RoadmapsPage() {
   const [journeys, setJourneys] = useState<Journey[]>([])
   const [customRoadmaps, setCustomRoadmaps] = useState<CustomRoadmap[]>([])
   const [customJourneys, setCustomJourneys] = useState<CustomJourney[]>([])
+  // topicProgress[roadmapId][topicNumber] = tick_count (1=done, 2=revised)
+  const [topicProgress, setTopicProgress] = useState<Record<string, Record<number, number>>>({})
   const [loading, setLoading] = useState(true)
   const [resetConfirm, setResetConfirm] = useState<string | null>(null)
   const [customResetConfirm, setCustomResetConfirm] = useState<string | null>(null)
@@ -680,11 +720,19 @@ export default function RoadmapsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const [{ data: jData }, { data: crData }, { data: cjData }] = await Promise.all([
+    const [{ data: jData }, { data: crData }, { data: cjData }, { data: tpData }] = await Promise.all([
       supabase.from('journeys').select('roadmap_id,started_at,paused_at,days_paused').eq('user_id', user.id),
       supabase.from('custom_roadmaps').select('id,name,description').eq('user_id', user.id).order('created_at'),
       supabase.from('custom_journeys').select('custom_roadmap_id,started_at,paused_at,days_paused').eq('user_id', user.id),
+      supabase.from('roadmap_topic_progress').select('roadmap_id,topic_number,tick_count').eq('user_id', user.id),
     ])
+
+    const progress: Record<string, Record<number, number>> = {}
+    for (const p of (tpData ?? [])) {
+      if (!progress[p.roadmap_id]) progress[p.roadmap_id] = {}
+      progress[p.roadmap_id][p.topic_number] = p.tick_count
+    }
+    setTopicProgress(progress)
 
     const roadmapIds = (crData ?? []).map(r => r.id)
     let topicsMap: Record<string, CustomTopic[]> = {}
@@ -707,6 +755,34 @@ export default function RoadmapsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  async function handleMarkDone(roadmapId: string, topicNumber: number) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('roadmap_topic_progress').upsert(
+      { user_id: user.id, roadmap_id: roadmapId, topic_number: topicNumber, tick_count: 1 },
+      { onConflict: 'user_id,roadmap_id,topic_number' }
+    )
+    setTopicProgress(prev => ({
+      ...prev,
+      [roadmapId]: { ...(prev[roadmapId] ?? {}), [topicNumber]: 1 },
+    }))
+  }
+
+  async function handleRevise(roadmapId: string, topicNumber: number) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('roadmap_topic_progress').upsert(
+      { user_id: user.id, roadmap_id: roadmapId, topic_number: topicNumber, tick_count: 2, revised_at: new Date().toISOString() },
+      { onConflict: 'user_id,roadmap_id,topic_number' }
+    )
+    setTopicProgress(prev => ({
+      ...prev,
+      [roadmapId]: { ...(prev[roadmapId] ?? {}), [topicNumber]: 2 },
+    }))
+  }
 
   async function handleStart(roadmapId: string) {
     const supabase = createClient()
@@ -828,10 +904,13 @@ export default function RoadmapsPage() {
               key={rm.id}
               roadmap={rm}
               journey={journeys.find(j => j.roadmap_id === rm.id)}
+              progress={topicProgress[rm.id] ?? {}}
               onStart={handleStart}
               onPause={handlePause}
               onResume={handleResume}
               onReset={handleReset}
+              onMarkDone={handleMarkDone}
+              onRevise={handleRevise}
               confirmingReset={resetConfirm === rm.id}
               onCancelReset={() => setResetConfirm(null)}
             />

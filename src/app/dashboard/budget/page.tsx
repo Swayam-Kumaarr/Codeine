@@ -64,6 +64,109 @@ const S = {
   bigNum: { fontFamily: 'var(--font-head)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' } as React.CSSProperties,
 }
 
+// ─── Daily Spending Chart ─────────────────────────────────────────────────────
+
+function DailySpendingChart({ dailyTotals, daysInMonth, month, year }: {
+  dailyTotals: number[]
+  daysInMonth: number
+  month: number
+  year: number
+}) {
+  const [tooltip, setTooltip] = useState<{ xPct: number; yPct: number; day: number; amount: number } | null>(null)
+
+  const W = 720, H = 130
+  const PAD = { top: 8, right: 8, bottom: 24, left: 52 }
+  const chartW = W - PAD.left - PAD.right
+  const chartH = H - PAD.top - PAD.bottom
+  const gap = 2
+  const barW = Math.max(4, Math.floor((chartW - gap * (daysInMonth - 1)) / daysInMonth))
+  const maxAmt = Math.max(...dailyTotals, 1)
+  const today = new Date()
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month
+  const todayIdx = today.getDate() - 1
+
+  const gridAmts = [maxAmt * 0.5, maxAmt]
+
+  return (
+    <div style={{ position: 'relative', userSelect: 'none' }} onMouseLeave={() => setTooltip(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block', overflow: 'visible' }}>
+        {/* Grid lines */}
+        {gridAmts.map((val, i) => {
+          const y = PAD.top + chartH - (val / maxAmt) * chartH
+          return (
+            <g key={i}>
+              <line x1={PAD.left} y1={y} x2={PAD.left + chartW} y2={y} stroke="currentColor" strokeOpacity={0.08} strokeWidth={1} />
+              <text x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={10} fill="currentColor" opacity={0.38}>
+                {val >= 1000 ? `₹${(val / 1000).toFixed(val >= 10000 ? 0 : 1)}k` : `₹${Math.round(val)}`}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Baseline */}
+        <line x1={PAD.left} y1={PAD.top + chartH} x2={PAD.left + chartW} y2={PAD.top + chartH} stroke="currentColor" strokeOpacity={0.15} strokeWidth={1} />
+
+        {/* Bars */}
+        {dailyTotals.map((amt, i) => {
+          const x = PAD.left + i * (barW + gap)
+          const barH = amt > 0 ? Math.max(3, (amt / maxAmt) * chartH) : 0
+          const y = PAD.top + chartH - barH
+          const isToday = isCurrentMonth && i === todayIdx
+          const isFuture = isCurrentMonth && i > todayIdx
+          const fill = isToday ? '#c0392b' : '#2563EB'
+          const opacity = isFuture ? 0.1 : amt === 0 ? 0 : isToday ? 0.9 : 0.65
+          return (
+            <rect
+              key={i}
+              x={x} y={y} width={barW} height={barH}
+              rx={2} fill={fill} opacity={opacity}
+              onMouseEnter={() => setTooltip({
+                xPct: ((x + barW / 2) / W) * 100,
+                yPct: ((y - 4) / H) * 100,
+                day: i + 1,
+                amount: amt,
+              })}
+              style={{ cursor: amt > 0 ? 'crosshair' : 'default' }}
+            />
+          )
+        })}
+
+        {/* X labels every 5 days */}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          if ((i + 1) % 5 !== 0 && i !== 0) return null
+          const x = PAD.left + i * (barW + gap) + barW / 2
+          return (
+            <text key={i} x={x} y={H - 4} textAnchor="middle" fontSize={10} fill="currentColor" opacity={0.38}>
+              {i + 1}
+            </text>
+          )
+        })}
+      </svg>
+
+      {tooltip && tooltip.amount > 0 && (
+        <div style={{
+          position: 'absolute',
+          left: `${tooltip.xPct}%`,
+          top: `${tooltip.yPct}%`,
+          transform: 'translateX(-50%) translateY(-100%)',
+          background: 'var(--ink)',
+          color: 'var(--bg)',
+          padding: '5px 10px',
+          borderRadius: 3,
+          fontSize: 11,
+          fontFamily: 'var(--font-body)',
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          zIndex: 10,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {new Date(year, month, tooltip.day).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}: {fmt(tooltip.amount)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BudgetPage() {
@@ -202,6 +305,14 @@ export default function BudgetPage() {
   const totalSpent = expenses.reduce((s, t) => s + t.amount, 0)
   const pleasure = spendable + extraIncome - totalSpent
   const spentPct = spendable > 0 ? Math.min(100, (totalSpent / spendable) * 100) : 0
+
+  // Daily totals
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const dailyTotals: number[] = Array(daysInMonth).fill(0)
+  for (const t of expenses) {
+    const day = parseInt(t.date.split('-')[2], 10) - 1
+    if (day >= 0 && day < daysInMonth) dailyTotals[day] += t.amount
+  }
 
   // Group by category
   const catTotals: Record<string, number> = {}
@@ -345,6 +456,17 @@ export default function BudgetPage() {
               <div style={{ height: '100%', width: `${spentPct}%`, background: spentPct > 90 ? '#c0392b' : spentPct > 70 ? '#d97706' : '#166534', transition: 'width 0.8s ease', borderRadius: 3 }} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Daily spending chart */}
+      {expenses.length > 0 && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <span style={{ ...S.label, marginBottom: 4 }}>Daily spending — {monthLabel(year, month)}</span>
+          <p style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 16 }}>
+            Hover a bar for details · <span style={{ color: '#c0392b' }}>red = today</span>
+          </p>
+          <DailySpendingChart dailyTotals={dailyTotals} daysInMonth={daysInMonth} month={month} year={year} />
         </div>
       )}
 
