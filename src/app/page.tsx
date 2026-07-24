@@ -52,8 +52,7 @@ const QUICK_TASKS = [
 const PROGRESS = [
   { label:'DSA',      pct:35, color:'#3D1F8A' },
   { label:'Java OOP', pct:20, color:'#1A4A3C' },
-  { label:'RDBMS',    pct:52, color:'#2A1F6A' },
-  { label:'COA',      pct:14, color:'#7A2020' },
+  { label:'LeetCode', pct:48, color:'#7A4800' },
 ]
 
 const TIME_LOGGED = [
