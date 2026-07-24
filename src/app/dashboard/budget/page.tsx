@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2, ChevronLeft, ChevronRight, X, Settings2 } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight, X, Settings2, Check, Pencil } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,11 @@ export default function BudgetPage() {
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // Editing state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<Omit<Transaction, 'id'> | null>(null)
+  const [savingEditId, setSavingEditId] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
@@ -148,6 +153,33 @@ export default function BudgetPage() {
     setAddDate(new Date().toISOString().split('T')[0])
     setShowAdd(false)
     await load()
+  }
+
+  function startEdit(t: Transaction) {
+    setEditingId(t.id)
+    setEditDraft({ amount: t.amount, description: t.description, category: t.category, date: t.date, type: t.type })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditDraft(null)
+  }
+
+  async function saveEdit(id: string) {
+    if (!editDraft) return
+    setSavingEditId(id)
+    const supabase = createClient()
+    await supabase.from('budget_transactions').update({
+      amount: editDraft.amount,
+      description: editDraft.description,
+      category: editDraft.type === 'income' ? 'Income' : editDraft.category,
+      date: editDraft.date,
+      type: editDraft.type,
+    }).eq('id', id)
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...editDraft, category: editDraft.type === 'income' ? 'Income' : editDraft.category } : t))
+    setSavingEditId(null)
+    setEditingId(null)
+    setEditDraft(null)
   }
 
   async function deleteTransaction(id: string) {
@@ -408,23 +440,92 @@ export default function BudgetPage() {
         <div>
           <span style={{ ...S.label, marginBottom: 12 }}>Transactions — {monthLabel(year, month)}</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--line)', border: '1px solid var(--line)' }}>
-            {transactions.map(t => (
-              <div key={t.id} style={{ background: 'var(--bg)', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px' }}>
-                <div style={{ fontSize: 20, flexShrink: 0 }}>{t.type === 'income' ? '💰' : (CATEGORY_MAP[t.category] ?? '📦')}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-                    {t.category} · {new Date(t.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </div>
+            {transactions.map(t => {
+              const isEditing = editingId === t.id && editDraft !== null
+              const d = isEditing ? editDraft! : null
+              return (
+                <div key={t.id} style={{ background: isEditing ? 'var(--bg-panel, #f9f9f9)' : 'var(--bg)' }}>
+                  {/* Collapsed row */}
+                  {!isEditing && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', cursor: 'pointer' }} onClick={() => startEdit(t)}>
+                      <div style={{ fontSize: 20, flexShrink: 0 }}>{t.type === 'income' ? '💰' : (CATEGORY_MAP[t.category] ?? '📦')}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</div>
+                        <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                          {t.category} · {new Date(t.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </div>
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: t.type === 'income' ? '#166534' : 'var(--ink)', flexShrink: 0 }}>
+                        {t.type === 'income' ? '+' : '−'}{fmt(t.amount)}
+                      </div>
+                      <Pencil size={12} style={{ color: 'var(--ink-3)', flexShrink: 0, opacity: 0.5 }} />
+                    </div>
+                  )}
+
+                  {/* Expanded edit form */}
+                  {isEditing && d && (
+                    <div style={{ padding: '16px 20px' }}>
+                      {/* Type toggle */}
+                      <div style={{ display: 'flex', gap: 1, background: 'var(--line)', border: '1px solid var(--line)', borderRadius: 3, marginBottom: 12, overflow: 'hidden' }}>
+                        {(['expense', 'income'] as const).map(tp => (
+                          <button key={tp} onClick={() => setEditDraft({ ...d, type: tp })} style={{ flex: 1, padding: '7px', background: d.type === tp ? 'var(--ink)' : 'var(--bg)', color: d.type === tp ? 'var(--bg)' : 'var(--ink-2)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: d.type === tp ? 600 : 400, textTransform: 'capitalize' }}>
+                            {tp === 'expense' ? '💸 Expense' : '💰 Income'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                        <div>
+                          <label style={S.label}>Amount (₹)</label>
+                          <input type="number" value={d.amount || ''} onChange={e => setEditDraft({ ...d, amount: parseFloat(e.target.value) || 0 })} style={{ ...S.input, fontSize: 13 }} />
+                        </div>
+                        <div>
+                          <label style={S.label}>Date</label>
+                          <input type="date" value={d.date} onChange={e => setEditDraft({ ...d, date: e.target.value })} style={{ ...S.input, fontSize: 13 }} />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={S.label}>Description</label>
+                        <input value={d.description} onChange={e => setEditDraft({ ...d, description: e.target.value })} style={{ ...S.input, fontSize: 13 }} />
+                      </div>
+
+                      {d.type === 'expense' && (
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={S.label}>Category</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {CATEGORIES.map(c => (
+                              <button key={c.label} onClick={() => setEditDraft({ ...d, category: c.label })} style={{
+                                padding: '4px 10px', borderRadius: 99, fontSize: 11, cursor: 'pointer', border: '1px solid',
+                                borderColor: d.category === c.label ? 'var(--ink)' : 'var(--line-strong)',
+                                background: d.category === c.label ? 'var(--ink)' : 'transparent',
+                                color: d.category === c.label ? 'var(--bg)' : 'var(--ink-2)',
+                                fontFamily: 'inherit',
+                              }}>
+                                {c.emoji} {c.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button onClick={() => saveEdit(t.id)} disabled={savingEditId === t.id || !d.amount || !d.description.trim()} style={{ ...S.primaryBtn, padding: '7px 14px', fontSize: 12, opacity: (savingEditId === t.id || !d.amount || !d.description.trim()) ? 0.5 : 1 }}>
+                          <Check size={12} /> {savingEditId === t.id ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={cancelEdit} style={{ ...S.secondaryBtn, padding: '7px 12px', fontSize: 12 }}>
+                          <X size={12} /> Cancel
+                        </button>
+                        <div style={{ flex: 1 }} />
+                        <button onClick={() => { cancelEdit(); deleteTransaction(t.id) }} disabled={deletingId === t.id} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, opacity: deletingId === t.id ? 0.4 : 1 }}>
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: t.type === 'income' ? '#166534' : 'var(--ink)', flexShrink: 0 }}>
-                  {t.type === 'income' ? '+' : '−'}{fmt(t.amount)}
-                </div>
-                <button onClick={() => deleteTransaction(t.id)} disabled={deletingId === t.id} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 4, flexShrink: 0, opacity: deletingId === t.id ? 0.4 : 1 }}>
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
           <div style={{ padding: '12px 20px', borderLeft: '1px solid var(--line)', borderRight: '1px solid var(--line)', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
             <span style={{ color: 'var(--ink-3)' }}>{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</span>
