@@ -10,10 +10,10 @@ const Cubes = dynamic(() => import('@/components/Cubes'), { ssr: false })
 // ─── Data ────────────────────────────────────────────────────────────
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const DAY_NUMS = [16, 17, 18, 19, 20, 21, 22]
-const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21]
+const HOURS = [6,7,8,9,10,11,12,13,14,15,16,17,18]
 const TODAY_IDX = 0
 const START_H = 6
-const TOTAL_H = 16 // 6am–10pm
+const TOTAL_H = 13 // 6am–7pm
 
 interface Task {
   id: number; day: number; start: number; dur: number
@@ -21,39 +21,45 @@ interface Task {
 }
 
 const TASKS: Task[] = [
-  { id:1,  day:0, start:7,  dur:2,   label:'DSA',      sub:'Arrays & Two Pointer', bg:'#EDE8F7', fg:'#3D1F8A', done:true  },
-  { id:2,  day:0, start:10, dur:2,   label:'Java OOP', sub:'Inheritance',           bg:'#E0EDEA', fg:'#1A4A3C', done:true  },
-  { id:3,  day:1, start:7,  dur:2,   label:'DSA',      sub:'Stacks & Queues',      bg:'#EDE8F7', fg:'#3D1F8A', done:false },
-  { id:4,  day:1, start:15, dur:1.5, label:'LeetCode', sub:'3 Medium Problems',    bg:'#FDF0D8', fg:'#7A4800', done:false },
-  { id:5,  day:2, start:8,  dur:2,   label:'Java OOP', sub:'Polymorphism',          bg:'#E0EDEA', fg:'#1A4A3C', done:false },
-  { id:6,  day:2, start:16, dur:1,   label:'Review',   sub:'Week Recap',           bg:'#F2E8E8', fg:'#7A2020', done:false },
-  { id:7,  day:3, start:7,  dur:2.5, label:'DSA',      sub:'Trees & BST',          bg:'#EDE8F7', fg:'#3D1F8A', done:false },
-  { id:8,  day:3, start:14, dur:1.5, label:'LeetCode', sub:'2 Hard Problems',      bg:'#FDF0D8', fg:'#7A4800', done:false },
-  { id:9,  day:4, start:9,  dur:2,   label:'Java OOP', sub:'Abstract Classes',      bg:'#E0EDEA', fg:'#1A4A3C', done:false },
-  { id:10, day:5, start:8,  dur:3,   label:'DSA',      sub:'Graphs & BFS/DFS',     bg:'#EDE8F7', fg:'#3D1F8A', done:false },
-  { id:11, day:5, start:14, dur:2,   label:'LeetCode', sub:'Contest Prep',         bg:'#FDF0D8', fg:'#7A4800', done:false },
-  { id:12, day:6, start:10, dur:2,   label:'Review',   sub:'Weekly Summary',       bg:'#F2E8E8', fg:'#7A2020', done:false },
+  { id:1,  day:0, start:7,    dur:2,   label:'DSA',      sub:'Arrays & Two Pointer', bg:'#EDE8F7', fg:'#3D1F8A', done:true  },
+  { id:2,  day:0, start:10,   dur:2,   label:'Java OOP', sub:'Inheritance',           bg:'#E0EDEA', fg:'#1A4A3C', done:true  },
+  { id:13, day:0, start:16,   dur:1,   label:'Budget',   sub:'Log expenses',          bg:'#E8F0F8', fg:'#1A3A5C', done:false },
+  { id:3,  day:1, start:7,    dur:2,   label:'DSA',      sub:'Stacks & Queues',      bg:'#EDE8F7', fg:'#3D1F8A', done:false },
+  { id:4,  day:1, start:14,   dur:1.5, label:'LeetCode', sub:'3 Medium Problems',    bg:'#FDF0D8', fg:'#7A4800', done:false },
+  { id:14, day:1, start:17,   dur:1,   label:'Gym',      sub:'Push day',             bg:'#F0EDE8', fg:'#4A3010', done:false },
+  { id:5,  day:2, start:8,    dur:2,   label:'Java OOP', sub:'Polymorphism',          bg:'#E0EDEA', fg:'#1A4A3C', done:false },
+  { id:6,  day:2, start:15.5, dur:1,   label:'RDBMS',    sub:'Joins & Indexes',      bg:'#EAE8F7', fg:'#2A1F6A', done:false },
+  { id:7,  day:3, start:7,    dur:2.5, label:'DSA',      sub:'Trees & BST',          bg:'#EDE8F7', fg:'#3D1F8A', done:false },
+  { id:8,  day:3, start:13,   dur:1.5, label:'LeetCode', sub:'2 Hard Problems',      bg:'#FDF0D8', fg:'#7A4800', done:false },
+  { id:15, day:3, start:17,   dur:1,   label:'COA',      sub:'Memory Hierarchy',     bg:'#F2E8E8', fg:'#7A2020', done:false },
+  { id:9,  day:4, start:9,    dur:2,   label:'Java OOP', sub:'Abstract Classes',      bg:'#E0EDEA', fg:'#1A4A3C', done:false },
+  { id:16, day:4, start:15,   dur:1.5, label:'Gym',      sub:'Pull day',             bg:'#F0EDE8', fg:'#4A3010', done:false },
+  { id:10, day:5, start:8,    dur:3,   label:'DSA',      sub:'Graphs & BFS/DFS',     bg:'#EDE8F7', fg:'#3D1F8A', done:false },
+  { id:11, day:5, start:14,   dur:1.5, label:'LeetCode', sub:'Contest Prep',         bg:'#FDF0D8', fg:'#7A4800', done:false },
+  { id:12, day:6, start:10,   dur:2,   label:'RDBMS',    sub:'Weekly review',        bg:'#EAE8F7', fg:'#2A1F6A', done:false },
+  { id:17, day:6, start:15,   dur:1,   label:'Journal',  sub:'Weekly reflection',    bg:'#E8F0E8', fg:'#1A4A1A', done:false },
 ]
 
 const QUICK_TASKS = [
   { id:3,  label:'DSA',      name:'Stacks & Queues',      color:'#3D1F8A' },
   { id:4,  label:'LeetCode', name:'3 Medium Problems',    color:'#7A4800' },
-  { id:9,  label:'Java OOP', name:'Abstract Classes',      color:'#1A4A3C' },
-  { id:5,  label:'Java OOP', name:'Polymorphism',          color:'#1A4A3C' },
-  { id:8,  label:'LeetCode', name:'2 Hard Problems',      color:'#7A4800' },
-  { id:6,  label:'Review',   name:'Week Recap',           color:'#7A2020' },
+  { id:6,  label:'RDBMS',    name:'Joins & Indexes',      color:'#2A1F6A' },
+  { id:15, label:'COA',      name:'Memory Hierarchy',     color:'#7A2020' },
+  { id:9,  label:'Java OOP', name:'Abstract Classes',     color:'#1A4A3C' },
+  { id:17, label:'Journal',  name:'Weekly reflection',    color:'#1A4A1A' },
 ]
 
 const PROGRESS = [
   { label:'DSA',      pct:35, color:'#3D1F8A' },
   { label:'Java OOP', pct:20, color:'#1A4A3C' },
-  { label:'LeetCode', pct:48, color:'#7A4800' },
+  { label:'RDBMS',    pct:52, color:'#2A1F6A' },
+  { label:'COA',      pct:14, color:'#7A2020' },
 ]
 
 const TIME_LOGGED = [
   { subj:'DSA',      val:'2h 30m' },
   { subj:'Java OOP', val:'1h 00m' },
-  { subj:'LeetCode', val:'0h 45m' },
+  { subj:'RDBMS',    val:'0h 45m' },
 ]
 
 
@@ -338,10 +344,10 @@ export default function Page() {
           }}>
             <p style={{ fontFamily: 'var(--font-head)', fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>Codeine</p>
             <h1 style={{ fontFamily: 'var(--font-head)', fontSize: 'clamp(36px, 5vw, 72px)', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.0, color: 'var(--ink)', maxWidth: 640 }}>
-              Your DSA + Java<br />journey, tracked.
+              Your learning<br />journey, tracked.
             </h1>
             <p style={{ fontSize: 15, color: 'var(--ink-2)', maxWidth: 420, lineHeight: 1.65 }}>
-              Daily roadmaps, task streaks, gym logs, and syllabus tracking — all in one place. No fluff.
+              Roadmaps, syllabus tracking, streaks, budgeting, and more. All in one place.
             </p>
             <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
               <MagBtn onClick={() => router.push('/signup')}>Get started →</MagBtn>
@@ -444,8 +450,8 @@ export default function Page() {
           {/* ── Bottom CTA ──────────────────────────────── */}
           <div style={{ padding: '48px 24px', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)' }}>
             <div>
-              <p style={{ fontFamily: 'var(--font-head)', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.03em', color: 'var(--ink)' }}>Ready to level up?</p>
-              <p style={{ fontSize: '14px', color: 'var(--ink-2)', marginTop: '4px' }}>Start your DSA + Java journey today.</p>
+              <p style={{ fontFamily: 'var(--font-head)', fontSize: '24px', fontWeight: 600, letterSpacing: '-0.03em', color: 'var(--ink)' }}>Ready to start?</p>
+              <p style={{ fontSize: '14px', color: 'var(--ink-2)', marginTop: '4px' }}>Your journey begins the day you track it.</p>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <MagBtn onClick={() => router.push('/signup')}>Create account →</MagBtn>
