@@ -25,6 +25,13 @@ export default function SettingsPage() {
   const [verifyingUsernames, setVerifyingUsernames] = useState(false)
   const [usernameError, setUsernameError] = useState<string | null>(null)
 
+  const [ghPat, setGhPat] = useState('')
+  const [patSaved, setPatSaved] = useState(false)
+
+  useEffect(() => {
+    setGhPat(localStorage.getItem('gh_pat') ?? '')
+  }, [])
+
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [pwSaving, setPwSaving] = useState(false)
@@ -297,6 +304,31 @@ export default function SettingsPage() {
         {usernameError && (
           <p style={{ fontSize: '12px', color: '#c53030', marginBottom: '12px' }}>{usernameError}</p>
         )}
+
+        {/* GitHub PAT for Artery PR triage */}
+        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--line)' }}>
+          <label style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', display: 'block', marginBottom: '6px' }}>
+            GitHub Personal Access Token
+          </label>
+          <p style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '8px', lineHeight: 1.5 }}>
+            Used for the Artery PR triage page. Generate one at GitHub Settings → Developer settings → Personal access tokens → Fine-grained. Give it <strong>repo</strong> read/write access. Stored locally on this device only.
+          </p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="password"
+              value={ghPat}
+              onChange={e => setGhPat(e.target.value)}
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              style={{ ...inputStyle, flex: 1, fontFamily: 'monospace', fontSize: '12px' }}
+            />
+            <button
+              onClick={() => { localStorage.setItem('gh_pat', ghPat); setPatSaved(true); setTimeout(() => setPatSaved(false), 2000) }}
+              style={{ padding: '10px 16px', borderRadius: 'var(--r)', border: 'none', background: patSaved ? '#16a34a' : 'var(--ink)', color: 'var(--bg)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}
+            >
+              {patSaved ? 'Saved' : 'Save PAT'}
+            </button>
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             onClick={saveProfile}

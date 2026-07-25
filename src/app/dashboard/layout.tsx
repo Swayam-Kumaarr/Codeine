@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine, Menu, X, Wallet } from 'lucide-react'
+import { Bell, Settings, LogOut, Zap, BookOpen, CalendarDays, AlertCircle, Map, Dumbbell, GitBranch, GraduationCap, Lightbulb, Trophy, Clock, PenLine, Menu, X, Wallet, GitPullRequest } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useProfile, invalidateProfileCache } from '@/lib/hooks/useProfile'
 import { useEffect, useState } from 'react'
@@ -24,6 +24,12 @@ const NAV_GROUPS = [
       { href: '/dashboard/syllabus', label: 'Syllabus', icon: BookOpen },
       { href: '/dashboard/timetable', label: 'Timetable', icon: Clock },
       { href: '/dashboard/cgpa', label: 'CGPA', icon: GraduationCap },
+    ],
+  },
+  {
+    label: 'Projects',
+    items: [
+      { href: '/dashboard/artery', label: 'Artery PRs', icon: GitPullRequest },
     ],
   },
   {
