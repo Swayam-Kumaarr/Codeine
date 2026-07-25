@@ -83,7 +83,7 @@ function ProblemLink({ label, color, bg, p }: {
 }) {
   return (
     <a
-      href={`https://leetcode.com/problems/${p.slug}/`}
+      href={`https://leetcode.com/problems/${p.slug}/description/`}
       target="_blank"
       rel="noopener noreferrer"
       style={{
