@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         const today = Math.floor(Date.now() / 1000) - 86400
         solvedToday = subs.some((s: { timestamp: string }) => parseInt(s.timestamp) > today)
       }
-    } catch {}
+    } catch (err) { console.error('notify/leetcode error:', err) }
 
     if (mode === 'daily' && solvedToday) continue
 
@@ -103,10 +103,9 @@ export async function POST(req: Request) {
           }
         }
       }
-    } catch {}
+    } catch (err) { console.error('notify/leetcode error:', err) }
   }
 
   return NextResponse.json({ sent })
 }
 
-export { POST as GET }

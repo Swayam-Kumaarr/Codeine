@@ -64,4 +64,3 @@ export async function POST(req: Request) {
   return NextResponse.json({ sent })
 }
 
-export { POST as GET }

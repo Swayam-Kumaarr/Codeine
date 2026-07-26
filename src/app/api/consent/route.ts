@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
-// Uses service role so consent is logged even before email confirmation
 const serviceClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -10,9 +10,12 @@ const serviceClient = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+    // Always derive user identity from the session, never from the request body
+    const supabase = await createServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
     const body = await req.json()
-    const { user_id, email, consents } = body as {
-      user_id: string
+    const { email, consents } = body as {
       email: string
       consents: Array<{ type: 'terms_and_conditions' | 'privacy_policy' | 'marketing_emails'; accepted: boolean }>
     }
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
     const userAgent = req.headers.get('user-agent') ?? 'unknown'
 
     const rows = consents.map(c => ({
-      user_id: user_id ?? null,
+      user_id: user?.id ?? null,
       email,
       consent_type: c.type,
       accepted: c.accepted,

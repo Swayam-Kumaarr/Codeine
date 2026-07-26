@@ -25,7 +25,7 @@ export default function SignupPage() {
     return msg
   }
 
-  async function recordConsent(userId: string) {
+  async function recordConsent() {
     const consents = [
       { type: 'terms_and_conditions' as const, accepted: true },
       { type: 'privacy_policy' as const, accepted: true },
@@ -35,10 +35,10 @@ export default function SignupPage() {
       await fetch('/api/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, email, consents }),
+        body: JSON.stringify({ email, consents }),
       })
     } catch {
-      // Non-blocking — signup still proceeds
+      // Non-blocking
     }
   }
 
@@ -61,7 +61,7 @@ export default function SignupPage() {
       options: { data: { name }, emailRedirectTo: `${location.origin}/auth/callback` },
     })
     if (signupError) { setError(friendlyError(signupError.message)); setLoading(false); return }
-    if (data.user) await recordConsent(data.user.id)
+    if (data.user) await recordConsent()
     setDone(true)
     setLoading(false)
   }

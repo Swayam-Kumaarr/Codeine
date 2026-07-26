@@ -61,10 +61,9 @@ export async function POST(req: Request) {
           sent++
         }
       }
-    } catch {}
+    } catch (err) { console.error('notify/github send error:', err) }
   }
 
   return NextResponse.json({ sent })
 }
 
-export { POST as GET }

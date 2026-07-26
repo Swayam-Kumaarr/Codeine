@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import Image from 'next/image'
 import { ExternalLink, RefreshCw, GitMerge, XCircle, AlertTriangle, CheckCircle2, Clock, GitPullRequest } from 'lucide-react'
 
 const REPO = 'Swayam-Kumaarr/artery'
@@ -122,7 +123,7 @@ export default function ArteryPage() {
   const [expanded, setExpanded] = useState<number | null>(null)
 
   useEffect(() => {
-    setPat(localStorage.getItem('gh_pat'))
+    setPat(sessionStorage.getItem('gh_pat'))
   }, [])
 
   const load = useCallback(async (token: string) => {
@@ -299,7 +300,7 @@ export default function ArteryPage() {
                 style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '12px' }}
                 onClick={() => setExpanded(isOpen ? null : pr.number)}
               >
-                <img src={pr.authorAvatar} alt={pr.author} width={32} height={32} style={{ borderRadius: '50%', flexShrink: 0, marginTop: 2 }} />
+                <Image src={pr.authorAvatar} alt={pr.author} width={32} height={32} style={{ borderRadius: '50%', flexShrink: 0, marginTop: 2 }} unoptimized />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
                     <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

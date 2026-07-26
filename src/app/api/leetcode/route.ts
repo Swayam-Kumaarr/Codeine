@@ -28,6 +28,9 @@ export async function GET() {
           streak
           totalActiveDays
         }
+        recentAcSubmissionList(limit: 10) {
+          timestamp
+        }
       }
     }
   `
@@ -50,10 +53,15 @@ export async function GET() {
   const hard   = stats.find((s: { difficulty: string }) => s.difficulty === 'Hard')?.count ?? 0
   const total  = easy + medium + hard
 
+  const recentSubmissions = (mu.recentAcSubmissionList ?? []).map(
+    (s: { timestamp: string }) => ({ timestamp: parseInt(s.timestamp, 10) })
+  )
+
   return NextResponse.json({
     username: profile.leetcode_username,
     solved: { total, easy, medium, hard },
     streak: mu.userCalendar?.streak ?? 0,
     activeDays: mu.userCalendar?.totalActiveDays ?? 0,
+    recentSubmissions,
   })
 }

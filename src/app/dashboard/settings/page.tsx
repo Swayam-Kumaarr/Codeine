@@ -29,7 +29,7 @@ export default function SettingsPage() {
   const [patSaved, setPatSaved] = useState(false)
 
   useEffect(() => {
-    setGhPat(localStorage.getItem('gh_pat') ?? '')
+    setGhPat(sessionStorage.getItem('gh_pat') ?? '')
   }, [])
 
   const [newPassword, setNewPassword] = useState('')
@@ -322,7 +322,7 @@ export default function SettingsPage() {
               style={{ ...inputStyle, flex: 1, fontFamily: 'monospace', fontSize: '12px' }}
             />
             <button
-              onClick={() => { localStorage.setItem('gh_pat', ghPat); setPatSaved(true); setTimeout(() => setPatSaved(false), 2000) }}
+              onClick={() => { sessionStorage.setItem('gh_pat', ghPat); setPatSaved(true); setTimeout(() => setPatSaved(false), 2000) }}
               style={{ padding: '10px 16px', borderRadius: 'var(--r)', border: 'none', background: patSaved ? '#16a34a' : 'var(--ink)', color: 'var(--bg)', fontSize: '13px', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}
             >
               {patSaved ? 'Saved' : 'Save PAT'}

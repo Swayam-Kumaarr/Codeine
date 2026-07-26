@@ -13,6 +13,7 @@ function getRoadmapColor(roadmapId: string | null) {
   if (roadmapId === 'dsa') return { bg: 'var(--dsa-bg)', ink: 'var(--dsa-ink)' }
   if (roadmapId === 'java') return { bg: 'var(--java-bg)', ink: 'var(--java-ink)' }
   if (roadmapId === 'rdbms') return { bg: 'var(--rdbms-bg)', ink: 'var(--rdbms-ink)' }
+  if (roadmapId === 'coa') return { bg: '#F2E8E8', ink: '#7A2020' }
   return { bg: 'var(--rev-bg)', ink: 'var(--rev-ink)' }
 }
 

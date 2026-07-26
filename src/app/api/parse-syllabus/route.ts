@@ -19,6 +19,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unsupported image type. Use JPEG, PNG, WebP or GIF.' }, { status: 400 })
   }
 
+  if (file.size > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: 'Image too large. Maximum size is 5 MB.' }, { status: 413 })
+  }
+
   const bytes = await file.arrayBuffer()
   const base64 = Buffer.from(bytes).toString('base64')
 

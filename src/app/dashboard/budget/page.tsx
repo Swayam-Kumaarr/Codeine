@@ -202,7 +202,8 @@ export default function BudgetPage() {
 
     const prefix = isoMonth(year, month)
     const from = `${prefix}-01`
-    const to = `${prefix}-31`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const to = `${prefix}-${String(lastDay).padStart(2, '0')}`
 
     const [{ data: s }, { data: t }] = await Promise.all([
       supabase.from('budget_settings').select('monthly_income,tax_pct,savings_pct').eq('user_id', user.id).maybeSingle(),
@@ -222,16 +223,17 @@ export default function BudgetPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSavingSettings(false); return }
-    await supabase.from('budget_settings').upsert({
+    const { error } = await supabase.from('budget_settings').upsert({
       user_id: user.id,
       monthly_income: settingsDraft.monthly_income,
       tax_pct: settingsDraft.tax_pct,
       savings_pct: settingsDraft.savings_pct,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
+    setSavingSettings(false)
+    if (error) { console.error('saveSettings failed:', error.message); return }
     setSettings(settingsDraft)
     setSettingsDraft(null)
-    setSavingSettings(false)
   }
 
   async function addTransaction() {

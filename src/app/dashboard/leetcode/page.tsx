@@ -111,19 +111,32 @@ export default function LeetCodePage() {
   const [error, setError] = useState<string | null>(null)
   const [solvedToday, setSolvedToday] = useState(false)
 
-  const todayKey = `lc_daily_${new Date().toISOString().split('T')[0]}`
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todayKey = `lc_daily_${todayStr}`
 
   useEffect(() => {
-    setSolvedToday(localStorage.getItem(todayKey) === '1')
+    // Seed from localStorage immediately so the banner doesn't flash
+    if (localStorage.getItem(todayKey) === '1') setSolvedToday(true)
   }, [todayKey])
 
   useEffect(() => {
     fetch('/api/leetcode')
       .then(r => r.ok ? r.json() : r.json().then((e: { error: string }) => Promise.reject(e.error)))
-      .then(setData)
+      .then((d: LCData & { recentSubmissions?: { timestamp: number }[] }) => {
+        setData(d)
+        // Check real submission data for today
+        if (d.recentSubmissions?.length) {
+          const todayStart = new Date(todayStr + 'T00:00:00').getTime() / 1000
+          const solvedViaApi = d.recentSubmissions.some(s => s.timestamp >= todayStart)
+          if (solvedViaApi) {
+            localStorage.setItem(todayKey, '1')
+            setSolvedToday(true)
+          }
+        }
+      })
       .catch(e => setError(typeof e === 'string' ? e : 'Failed to load'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [todayKey, todayStr])
 
   function markSolvedToday() {
     localStorage.setItem(todayKey, '1')

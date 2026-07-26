@@ -46,13 +46,13 @@ export default function OnboardingPage() {
       onboarded: true,
     }).eq('id', user.id)
 
-    for (const roadmap_id of journeys) {
-      await supabase.from('journeys').upsert({
+    await Promise.all(journeys.map(roadmap_id =>
+      supabase.from('journeys').upsert({
         user_id: user.id,
         roadmap_id,
         started_at: new Date().toISOString().split('T')[0],
       }, { onConflict: 'user_id,roadmap_id' })
-    }
+    ))
 
     router.push('/dashboard')
     router.refresh()

@@ -15,6 +15,7 @@ export interface Profile {
   last_active: string | null
   last_login: string | null
   onboarded: boolean
+  created_at: string
 }
 
 // Module-level cache so navigating between pages doesn't refetch
