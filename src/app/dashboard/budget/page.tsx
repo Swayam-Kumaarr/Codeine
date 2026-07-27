@@ -308,8 +308,17 @@ export default function BudgetPage() {
   const pleasure = spendable + extraIncome - totalSpent
   const spentPct = spendable > 0 ? Math.min(100, (totalSpent / spendable) * 100) : 0
 
-  // Daily totals
   const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  // Net flow breakdown
+  const totalIn = income + extraIncome
+  const totalOut = totalSpent
+  const netMonth = totalIn - totalOut
+  const netDay = netMonth / daysInMonth
+  const netWeek = netDay * 7
+  const netYear = netMonth * 12
+
+  // Daily totals
   const dailyTotals: number[] = Array(daysInMonth).fill(0)
   for (const t of expenses) {
     const day = parseInt(t.date.split('-')[2], 10) - 1
@@ -414,6 +423,49 @@ export default function BudgetPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Net flow card */}
+      {income > 0 && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <span style={S.label}>Net flow — {monthLabel(year, month)}</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: '#166534' }}>+{fmt(totalIn)} in</span>
+                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>vs</span>
+                <span style={{ fontSize: 13, color: '#c0392b' }}>{fmt(totalOut)} out</span>
+              </div>
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-head)', fontSize: 32, fontWeight: 700,
+              letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums',
+              color: netMonth >= 0 ? '#166534' : '#c0392b',
+            }}>
+              {netMonth >= 0 ? '+' : ''}{fmt(netMonth)}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)' }}>
+            {[
+              { label: 'Per day', value: netDay },
+              { label: 'Per week', value: netWeek },
+              { label: 'Per month', value: netMonth },
+              { label: 'Per year (proj.)', value: netYear },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ background: 'var(--bg)', padding: '14px 18px' }}>
+                <span style={S.label}>{label}</span>
+                <div style={{
+                  fontFamily: 'var(--font-head)', fontSize: 18, fontWeight: 700,
+                  letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums',
+                  color: value >= 0 ? '#166534' : '#c0392b',
+                }}>
+                  {value >= 0 ? '+' : ''}{fmt(Math.abs(value))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
