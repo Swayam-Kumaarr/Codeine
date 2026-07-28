@@ -49,6 +49,8 @@ export default function TodayPage() {
 
   interface PendingHW { id: string; title: string; due_date: string | null; subject_name: string; subject_color: string }
   const [pendingHW, setPendingHW] = useState<PendingHW[]>([])
+  interface MissedTask { id: string; title: string; roadmap_id: string | null; scheduled_date: string }
+  const [missedTasks, setMissedTasks] = useState<MissedTask[]>([])
 
   useEffect(() => {
     const supabase = createClient()
@@ -58,7 +60,7 @@ export default function TodayPage() {
       const weekDates = getWeekDates()
       const weekStart = toDateStr(weekDates[0])
       const weekEnd = toDateStr(weekDates[6])
-      const [{ data: journeyData }, { data: hwData }, { data: weekData }] = await Promise.all([
+      const [{ data: journeyData }, { data: hwData }, { data: weekData }, { data: missedData }] = await Promise.all([
         supabase.from('journeys').select('roadmap_id,started_at,paused_at,days_paused').eq('user_id', user.id),
         supabase.from('homework')
           .select('id, title, due_date, subject_id, subjects(name, color)')
@@ -72,6 +74,13 @@ export default function TodayPage() {
           .eq('user_id', user.id)
           .gte('scheduled_date', weekStart)
           .lte('scheduled_date', weekEnd),
+        supabase.from('tasks')
+          .select('id, title, roadmap_id, scheduled_date')
+          .eq('user_id', user.id)
+          .eq('done', false)
+          .lt('scheduled_date', todayStr)
+          .order('scheduled_date', { ascending: false })
+          .limit(30),
       ])
       setJourneys(journeyData ?? [])
       setPendingHW(
@@ -84,6 +93,7 @@ export default function TodayPage() {
         }))
       )
       setWeekTasks(weekData ?? [])
+      setMissedTasks(missedData ?? [])
       setNewTaskDate(todayStr)
     })
   }, [])
@@ -153,6 +163,19 @@ export default function TodayPage() {
     const supabase = createClient()
     await supabase.from('homework').update({ done: true, done_at: new Date().toISOString() }).eq('id', hwId)
     setPendingHW(prev => prev.filter(h => h.id !== hwId))
+  }
+
+  async function dismissMissed(taskId: string) {
+    const supabase = createClient()
+    const task = missedTasks.find(t => t.id === taskId)
+    await supabase.from('tasks').update({ done: true, done_at: new Date().toISOString() }).eq('id', taskId)
+    if (task) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.rpc('award_xp', { p_user_id: user.id, p_xp: 30, p_reason: `Late completion: ${task.title}` }).maybeSingle()
+      }
+    }
+    setMissedTasks(prev => prev.filter(t => t.id !== taskId))
   }
 
   const loading = tasksLoading || profileLoading
@@ -510,6 +533,56 @@ export default function TodayPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Missed tasks — undone tasks from previous days */}
+      {missedTasks.length > 0 && (
+        <div style={{ background: 'var(--bg-panel)', border: '1px solid #f5c6cb', borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: '16px' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid #f5c6cb', background: '#FDF0F0' }}>
+            <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c0392b' }}>
+              Missed — {missedTasks.length} task{missedTasks.length !== 1 ? 's' : ''} not completed
+            </h2>
+          </div>
+          {(() => {
+            // Group by roadmap_id
+            const groups: Record<string, typeof missedTasks> = {}
+            for (const t of missedTasks) {
+              const key = t.roadmap_id ?? 'custom'
+              groups[key] = [...(groups[key] ?? []), t]
+            }
+            return Object.entries(groups).map(([key, items]) => {
+              const colors = getRoadmapColor(key === 'custom' ? null : key)
+              return (
+                <div key={key}>
+                  <div style={{ padding: '8px 20px', background: colors.bg, borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.ink }}>
+                      {key === 'custom' ? 'Custom' : key.toUpperCase()}
+                    </span>
+                  </div>
+                  {items.map((t, i) => {
+                    const daysAgo = Math.floor((new Date().getTime() - new Date(t.scheduled_date + 'T00:00:00').getTime()) / 86400000)
+                    return (
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 20px', borderBottom: i < items.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', color: 'var(--ink)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</p>
+                          <p style={{ fontSize: '11px', color: '#c0392b', marginTop: 2 }}>
+                            {daysAgo === 1 ? 'Yesterday' : `${daysAgo}d ago`} · {new Date(t.scheduled_date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => dismissMissed(t.id)}
+                          style={{ padding: '5px 12px', background: 'var(--ink)', color: 'var(--bg)', border: 'none', borderRadius: 'var(--r)', fontSize: '11px', fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        >
+                          Done anyway
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })
+          })()}
         </div>
       )}
 
