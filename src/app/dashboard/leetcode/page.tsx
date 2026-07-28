@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useProfile } from '@/lib/hooks/useProfile'
 import { ExternalLink, Code2, Flame, CalendarDays, Trophy, BookOpen, CheckCircle2 } from 'lucide-react'
 import { ALL_ROADMAPS } from '@/data/roadmaps'
+import { createClient } from '@/lib/supabase/client'
 
 interface LCData {
   username: string
@@ -63,17 +64,16 @@ const TOPIC_PROBLEMS: Record<string, { easy: Problem; medium: Problem; hard: Pro
 
 const DIFFICULTY_TOTALS = { easy: 850, medium: 1800, hard: 750 }
 
-function getCurrentDSATopic(createdAt: string) {
+function getDSATopicByNumber(topicNumber: number) {
+  const dsa = ALL_ROADMAPS.find(r => r.id === 'dsa')
+  return dsa?.topics.find(t => t.number === topicNumber) ?? null
+}
+
+function getDSATopicByDay(dayNum: number) {
   const dsa = ALL_ROADMAPS.find(r => r.id === 'dsa')
   if (!dsa) return null
-  const start = new Date(createdAt)
-  start.setHours(0, 0, 0, 0)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const day = Math.max(1, Math.floor((today.getTime() - start.getTime()) / 86400000) + 1)
   for (const t of dsa.topics) {
-    if (day >= t.startDay && day <= t.endDay) return t
-    if (day < t.startDay) return dsa.topics[0]
+    if (dayNum >= t.startDay && dayNum <= t.endDay) return t
   }
   return dsa.topics[dsa.topics.length - 1]
 }
@@ -110,12 +110,13 @@ export default function LeetCodePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [solvedToday, setSolvedToday] = useState(false)
+  const [completedTopicNums, setCompletedTopicNums] = useState<number[]>([])
+  const [dsaDayNum, setDsaDayNum] = useState<number | null>(null)
 
   const todayStr = new Date().toISOString().split('T')[0]
   const todayKey = `lc_daily_${todayStr}`
 
   useEffect(() => {
-    // Seed from localStorage immediately so the banner doesn't flash
     if (localStorage.getItem(todayKey) === '1') setSolvedToday(true)
   }, [todayKey])
 
@@ -124,7 +125,6 @@ export default function LeetCodePage() {
       .then(r => r.ok ? r.json() : r.json().then((e: { error: string }) => Promise.reject(e.error)))
       .then((d: LCData & { recentSubmissions?: { timestamp: number }[] }) => {
         setData(d)
-        // Check real submission data for today
         if (d.recentSubmissions?.length) {
           const todayStart = new Date(todayStr + 'T00:00:00').getTime() / 1000
           const solvedViaApi = d.recentSubmissions.some(s => s.timestamp >= todayStart)
@@ -138,14 +138,41 @@ export default function LeetCodePage() {
       .finally(() => setLoading(false))
   }, [todayKey, todayStr])
 
+  // Fetch completed DSA topics + current DSA day from journey
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const [{ data: progress }, { data: journey }] = await Promise.all([
+        supabase.from('roadmap_topic_progress').select('topic_number').eq('user_id', user.id).eq('roadmap_id', 'dsa'),
+        supabase.from('journeys').select('started_at, paused_at, days_paused').eq('user_id', user.id).eq('roadmap_id', 'dsa').maybeSingle(),
+      ])
+      if (progress) setCompletedTopicNums(progress.map((r: { topic_number: number }) => r.topic_number))
+      if (journey) {
+        const ref = journey.paused_at ?? todayStr + 'T00:00:00'
+        const start = new Date(journey.started_at)
+        const end = new Date(ref)
+        start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0)
+        const raw = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1)
+        setDsaDayNum(Math.max(raw - (journey.days_paused ?? 0), 1))
+      }
+    })
+  }, [todayStr])
+
   function markSolvedToday() {
     localStorage.setItem(todayKey, '1')
     setSolvedToday(true)
   }
 
   const username = profile?.leetcode_username
-  const currentTopic = profile?.created_at ? getCurrentDSATopic(profile.created_at) : null
+  const currentTopic = dsaDayNum ? getDSATopicByDay(dsaDayNum) : null
   const suggestions = currentTopic ? TOPIC_PROBLEMS[currentTopic.name] : null
+
+  // Completed topics that have problem suggestions, excluding the current one
+  const completedTopicsWithProblems = completedTopicNums
+    .map(n => getDSATopicByNumber(n))
+    .filter((t): t is NonNullable<typeof t> => t !== null && t.number !== currentTopic?.number && TOPIC_PROBLEMS[t.name] !== undefined)
+    .sort((a, b) => a.number - b.number)
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--bg-panel)',
@@ -254,15 +281,18 @@ export default function LeetCodePage() {
         </>
       )}
 
-      {/* DSA topic connection */}
+      {/* Current DSA topic */}
       {currentTopic && (
-        <div style={{ ...inputStyle, borderColor: 'rgba(61,31,138,0.2)', background: '#F9F7FF' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <BookOpen size={14} color="#3D1F8A" />
-            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#3D1F8A' }}>Your DSA roadmap right now</span>
+        <div style={{ ...inputStyle, borderColor: 'rgba(61,31,138,0.2)', background: '#F9F7FF', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BookOpen size={14} color="#3D1F8A" />
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#3D1F8A' }}>Active now</span>
+            </div>
+            {dsaDayNum && <span style={{ fontSize: '11px', color: '#3D1F8A', opacity: 0.6 }}>Day {dsaDayNum}</span>}
           </div>
           <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px' }}>{currentTopic.name}</p>
-          <p style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '14px' }}>Day {currentTopic.startDay} to {currentTopic.endDay} of your roadmap. Suggested problems for this topic:</p>
+          <p style={{ fontSize: '12px', color: 'var(--ink-3)', marginBottom: '14px' }}>Roadmap days {currentTopic.startDay} to {currentTopic.endDay}. Problems to practice alongside this topic:</p>
           {suggestions ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <ProblemLink label="Easy"   color="#2db55d" bg="#F0FAF4" p={suggestions.easy}   />
@@ -272,6 +302,34 @@ export default function LeetCodePage() {
           ) : (
             <p style={{ fontSize: '13px', color: 'var(--ink-3)' }}>No suggestions mapped for this topic yet.</p>
           )}
+        </div>
+      )}
+
+      {/* Completed DSA topics — one box each */}
+      {completedTopicsWithProblems.length > 0 && (
+        <div>
+          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '12px' }}>
+            Completed topics — practice more
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {completedTopicsWithProblems.map(topic => {
+              const probs = TOPIC_PROBLEMS[topic.name]
+              return (
+                <div key={topic.number} style={{ ...inputStyle, borderColor: 'var(--line-strong)', background: 'var(--bg)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <CheckCircle2 size={13} color="#2db55d" />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>{topic.name}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--ink-3)', marginLeft: 'auto' }}>Days {topic.startDay}–{topic.endDay}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <ProblemLink label="Easy"   color="#2db55d" bg="#F0FAF4" p={probs.easy}   />
+                    <ProblemLink label="Medium" color="#ffa116" bg="#FFF8EE" p={probs.medium} />
+                    <ProblemLink label="Hard"   color="#ef4743" bg="#FFF5F5" p={probs.hard}   />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

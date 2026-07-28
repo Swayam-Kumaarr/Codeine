@@ -45,6 +45,7 @@ export default function TodayPage() {
   const [newTaskDate, setNewTaskDate] = useState('')
   const [savingTask, setSavingTask] = useState(false)
   const [weekTasks, setWeekTasks] = useState<WeekTask[]>([])
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
   interface PendingHW { id: string; title: string; due_date: string | null; subject_name: string; subject_color: string }
   const [pendingHW, setPendingHW] = useState<PendingHW[]>([])
@@ -381,49 +382,113 @@ export default function TodayPage() {
       </div>
 
       <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--line)', borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: '16px' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>This week</h2>
+          {selectedDay && (
+            <button onClick={() => setSelectedDay(null)} style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--ink-3)', cursor: 'pointer', fontFamily: 'var(--font-body)', padding: '2px 6px' }}>
+              Close panel ×
+            </button>
+          )}
         </div>
-        <div style={{ display: 'flex', overflowX: 'auto', maxHeight: '200px', padding: '16px 20px', gap: '4px' }}>
-          {getWeekDates().map(date => {
-            const dateStr = toDateStr(date)
-            const isToday = dateStr === new Date().toISOString().split('T')[0]
-            const dayTasks = weekTasks.filter(t => t.scheduled_date === dateStr)
-            return (
-              <div key={dateStr} style={{ flex: '1 0 100px', minWidth: '100px', padding: '8px 6px', borderRadius: 'var(--r)', background: isToday ? 'var(--bg-hover)' : 'transparent' }}>
-                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>
-                    {date.toLocaleDateString('en-IN', { weekday: 'short' })}
+        <div style={{ display: 'flex', minHeight: '160px' }}>
+          {/* 7-day grid */}
+          <div style={{ flex: selectedDay ? '0 0 58%' : '1', borderRight: selectedDay ? '1px solid var(--line)' : 'none', display: 'flex', padding: '12px 16px', gap: '2px', overflowX: 'auto' }}>
+            {getWeekDates().map(date => {
+              const dateStr = toDateStr(date)
+              const todayStr2 = new Date().toISOString().split('T')[0]
+              const isToday = dateStr === todayStr2
+              const isSelected = selectedDay === dateStr
+              const dayTasks = weekTasks.filter(t => t.scheduled_date === dateStr)
+              return (
+                <div
+                  key={dateStr}
+                  onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                  style={{
+                    flex: '1 0 80px', minWidth: '80px', padding: '8px 6px', borderRadius: 'var(--r)',
+                    cursor: 'pointer',
+                    background: isSelected ? 'var(--bg-hover)' : isToday ? 'rgba(0,0,0,0.03)' : 'transparent',
+                    outline: isSelected ? '1.5px solid var(--ink)' : isToday ? '1px solid var(--line-strong)' : 'none',
+                    transition: 'background 0.15s',
+                  }}
+                >
+                  <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: isSelected ? 'var(--ink)' : 'var(--ink-3)' }}>
+                      {date.toLocaleDateString('en-IN', { weekday: 'short' })}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-head)', fontSize: '15px', fontWeight: 700, color: isSelected ? 'var(--ink)' : isToday ? 'var(--ink)' : 'var(--ink-2)' }}>
+                      {date.getDate()}
+                    </div>
                   </div>
-                  <div style={{ fontFamily: 'var(--font-head)', fontSize: '16px', fontWeight: 600, color: isToday ? 'var(--ink)' : 'var(--ink-2)' }}>
-                    {date.getDate()}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '130px', overflowY: 'auto' }}>
-                  {dayTasks.map(t => {
-                    const colors = t.roadmap_id ? getRoadmapColor(t.roadmap_id) : null
-                    return (
-                      <div
-                        key={t.id}
-                        title={t.title}
-                        style={{
-                          fontSize: '10px', padding: '3px 7px', borderRadius: '999px',
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {dayTasks.slice(0, 4).map(t => {
+                      const colors = t.roadmap_id ? getRoadmapColor(t.roadmap_id) : null
+                      return (
+                        <div key={t.id} style={{
+                          fontSize: '9px', padding: '2px 6px', borderRadius: '999px',
                           background: colors ? colors.bg : 'var(--bg)',
                           color: colors ? colors.ink : 'var(--ink-3)',
                           border: colors ? 'none' : '1px solid var(--line-strong)',
                           textDecoration: t.done ? 'line-through' : 'none',
-                          opacity: t.done ? 0.5 : 1,
+                          opacity: t.done ? 0.45 : 1,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {t.title}
-                      </div>
-                    )
-                  })}
+                        }}>
+                          {t.title}
+                        </div>
+                      )
+                    })}
+                    {dayTasks.length > 4 && (
+                      <div style={{ fontSize: '9px', color: 'var(--ink-3)', paddingLeft: '6px' }}>+{dayTasks.length - 4} more</div>
+                    )}
+                    {dayTasks.length === 0 && (
+                      <div style={{ fontSize: '9px', color: 'var(--line-strong)', paddingLeft: '4px' }}>—</div>
+                    )}
+                  </div>
                 </div>
+              )
+            })}
+          </div>
+
+          {/* Detail panel */}
+          {selectedDay && (() => {
+            const selDate = new Date(selectedDay + 'T00:00:00')
+            const dayTasks = weekTasks.filter(t => t.scheduled_date === selectedDay)
+            const doneCnt = dayTasks.filter(t => t.done).length
+            return (
+              <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto' }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '4px' }}>
+                  {selDate.toLocaleDateString('en-IN', { weekday: 'long' })}
+                </p>
+                <p style={{ fontFamily: 'var(--font-head)', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--ink)', marginBottom: '14px' }}>
+                  {selDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}
+                </p>
+                {dayTasks.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: 'var(--ink-3)' }}>No tasks scheduled.</p>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '11px', color: 'var(--ink-3)', marginBottom: '10px' }}>{doneCnt} of {dayTasks.length} done</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {dayTasks.map(t => {
+                        const colors = t.roadmap_id ? getRoadmapColor(t.roadmap_id) : null
+                        return (
+                          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 'var(--r)' }}>
+                            <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: t.done ? '#2db55d' : 'var(--line-strong)', border: t.done ? 'none' : '1.5px solid var(--ink-3)' }} />
+                            <span style={{ flex: 1, fontSize: '13px', color: t.done ? 'var(--ink-3)' : 'var(--ink)', textDecoration: t.done ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                              {t.title}
+                            </span>
+                            {t.roadmap_id && colors && (
+                              <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', background: colors.bg, color: colors.ink, flexShrink: 0 }}>
+                                {t.roadmap_id.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             )
-          })}
+          })()}
         </div>
       </div>
 
