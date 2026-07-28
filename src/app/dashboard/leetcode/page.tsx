@@ -64,11 +64,6 @@ const TOPIC_PROBLEMS: Record<string, { easy: Problem; medium: Problem; hard: Pro
 
 const DIFFICULTY_TOTALS = { easy: 850, medium: 1800, hard: 750 }
 
-function getDSATopicByNumber(topicNumber: number) {
-  const dsa = ALL_ROADMAPS.find(r => r.id === 'dsa')
-  return dsa?.topics.find(t => t.number === topicNumber) ?? null
-}
-
 function getDSATopicByDay(dayNum: number) {
   const dsa = ALL_ROADMAPS.find(r => r.id === 'dsa')
   if (!dsa) return null
@@ -110,7 +105,6 @@ export default function LeetCodePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [solvedToday, setSolvedToday] = useState(false)
-  const [completedTopicNums, setCompletedTopicNums] = useState<number[]>([])
   const [dsaDayNum, setDsaDayNum] = useState<number | null>(null)
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -134,20 +128,21 @@ export default function LeetCodePage() {
           }
         }
       })
-      .catch(e => setError(typeof e === 'string' ? e : 'Failed to load'))
+      .catch(e => setError(typeof e === 'string' ? e : 'Could not load LeetCode stats. Your topic boxes below still work.'))
       .finally(() => setLoading(false))
   }, [todayKey, todayStr])
 
-  // Fetch completed DSA topics + current DSA day from journey
+  // Fetch current DSA day from journey
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const [{ data: progress }, { data: journey }] = await Promise.all([
-        supabase.from('roadmap_topic_progress').select('topic_number').eq('user_id', user.id).eq('roadmap_id', 'dsa'),
-        supabase.from('journeys').select('started_at, paused_at, days_paused').eq('user_id', user.id).eq('roadmap_id', 'dsa').maybeSingle(),
-      ])
-      if (progress) setCompletedTopicNums(progress.map((r: { topic_number: number }) => r.topic_number))
+      const { data: journey } = await supabase
+        .from('journeys')
+        .select('started_at, paused_at, days_paused')
+        .eq('user_id', user.id)
+        .eq('roadmap_id', 'dsa')
+        .maybeSingle()
       if (journey) {
         const ref = journey.paused_at ?? todayStr + 'T00:00:00'
         const start = new Date(journey.started_at)
@@ -168,11 +163,11 @@ export default function LeetCodePage() {
   const currentTopic = dsaDayNum ? getDSATopicByDay(dsaDayNum) : null
   const suggestions = currentTopic ? TOPIC_PROBLEMS[currentTopic.name] : null
 
-  // Completed topics that have problem suggestions, excluding the current one
-  const completedTopicsWithProblems = completedTopicNums
-    .map(n => getDSATopicByNumber(n))
-    .filter((t): t is NonNullable<typeof t> => t !== null && t.number !== currentTopic?.number && TOPIC_PROBLEMS[t.name] !== undefined)
-    .sort((a, b) => a.number - b.number)
+  // All DSA topics the user has already passed through (endDay before current day)
+  const dsaRoadmap = ALL_ROADMAPS.find(r => r.id === 'dsa')
+  const coveredTopics = dsaDayNum && dsaRoadmap
+    ? dsaRoadmap.topics.filter(t => t.endDay < dsaDayNum && TOPIC_PROBLEMS[t.name] !== undefined)
+    : []
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--bg-panel)',
@@ -305,14 +300,14 @@ export default function LeetCodePage() {
         </div>
       )}
 
-      {/* Completed DSA topics — one box each */}
-      {completedTopicsWithProblems.length > 0 && (
+      {/* Covered DSA topics — one box per topic already passed */}
+      {coveredTopics.length > 0 && (
         <div>
           <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', marginBottom: '12px' }}>
-            Completed topics — practice more
+            Covered topics — keep practising
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {completedTopicsWithProblems.map(topic => {
+            {coveredTopics.map(topic => {
               const probs = TOPIC_PROBLEMS[topic.name]
               return (
                 <div key={topic.number} style={{ ...inputStyle, borderColor: 'var(--line-strong)', background: 'var(--bg)' }}>

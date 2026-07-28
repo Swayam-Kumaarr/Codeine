@@ -37,11 +37,19 @@ export async function GET() {
 
   const res = await fetch('https://leetcode.com/graphql', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Referer': 'https://leetcode.com',
+      'Origin': 'https://leetcode.com',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    },
     body: JSON.stringify({ query, variables: { username: profile.leetcode_username } }),
   })
 
-  if (!res.ok) return NextResponse.json({ error: 'LeetCode API failed' }, { status: 502 })
+  if (!res.ok) {
+    console.error('LeetCode API status:', res.status, await res.text().catch(() => ''))
+    return NextResponse.json({ error: `LeetCode API failed (${res.status})` }, { status: 502 })
+  }
 
   const json = await res.json()
   const mu = json.data?.matchedUser
