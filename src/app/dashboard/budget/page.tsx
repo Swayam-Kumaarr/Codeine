@@ -407,111 +407,95 @@ export default function BudgetPage() {
         )}
       </div>
 
-      {/* Allocation breakdown */}
-      {income > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)', marginBottom: 24 }}>
+      {/* ── Main summary card — always visible ── */}
+      <div style={{ ...S.card, marginBottom: 24, borderLeft: `3px solid ${netMonth >= 0 ? '#166534' : '#c0392b'}` }}>
+
+        {/* Top row: net figure */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div>
+            <span style={S.label}>Net balance — {monthLabel(year, month)}</span>
+            <div style={{ fontFamily: 'var(--font-head)', fontSize: 44, fontWeight: 700, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', lineHeight: 1, color: netMonth >= 0 ? '#166534' : '#c0392b' }}>
+              {netMonth >= 0 ? '+' : '−'}{fmt(Math.abs(netMonth))}
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>
+              {fmt(totalIn)} in, {fmt(totalOut)} out
+              {income > 0 && savings > 0 && ` · ${fmt(savings)} earmarked for savings`}
+            </p>
+          </div>
+
+          {/* Right mini stats */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+            <div style={{ textAlign: 'right' }}>
+              <span style={S.label}>This week spent</span>
+              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-head)', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(thisWeekSpent)}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span style={S.label}>Daily avg spend</span>
+              <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-head)', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(totalSpent / Math.max(1, new Date().getDate()))}</div>
+            </div>
+            {income > 0 && savings > 0 && (
+              <div style={{ textAlign: 'right' }}>
+                <span style={S.label}>Savings target</span>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-head)', color: '#2563EB', fontVariantNumeric: 'tabular-nums' }}>{fmt(savings)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Income vs Expense bar */}
+        {(totalIn > 0 || totalOut > 0) && (() => {
+          const barMax = Math.max(totalIn, totalOut, 1)
+          return (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-3)', marginBottom: 5 }}>
+                <span style={{ color: '#166534', fontWeight: 600 }}>Income {totalIn > 0 ? `${Math.round((totalIn / barMax) * 100)}%` : ''}</span>
+                <span style={{ color: '#c0392b', fontWeight: 600 }}>Spent {totalOut > 0 ? `${Math.round((totalOut / totalIn || 0) * 100)}%` : ''}</span>
+              </div>
+              <div style={{ position: 'relative', height: 8, background: 'var(--line-strong)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${(totalIn / barMax) * 100}%`, background: '#166534', opacity: 0.25, borderRadius: 4 }} />
+                <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${(totalOut / barMax) * 100}%`, background: totalOut > totalIn ? '#c0392b' : '#e07b00', borderRadius: 4, transition: 'width 0.6s ease' }} />
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Per-period breakdown grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--line)', border: '1px solid var(--line)', borderRadius: 3, overflow: 'hidden', marginBottom: income > 0 ? 20 : 0 }}>
           {[
-            { label: 'Gross Income', value: income, color: 'var(--ink)' },
-            { label: `Tax (${settings.tax_pct}%)`, value: -tax, color: '#c0392b' },
-            { label: `Savings (${settings.savings_pct}%)`, value: -savings, color: '#2563EB' },
-            { label: 'Spendable', value: spendable, color: '#166534' },
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{ background: 'var(--bg)', padding: '20px 24px' }}>
+            { label: 'Per day', value: netDay },
+            { label: 'Per week', value: netWeek },
+            { label: 'This month', value: netMonth },
+            { label: 'Yearly proj.', value: netYear },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: 'var(--bg)', padding: '12px 14px' }}>
               <span style={S.label}>{label}</span>
-              <div style={{ fontFamily: 'var(--font-head)', fontSize: 22, fontWeight: 700, color, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                {value < 0 ? '−' : ''}{fmt(Math.abs(value))}
+              <div style={{ fontFamily: 'var(--font-head)', fontSize: 15, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: value >= 0 ? '#166534' : '#c0392b' }}>
+                {value >= 0 ? '+' : '−'}{fmt(Math.abs(value))}
               </div>
             </div>
           ))}
         </div>
-      )}
 
-      {/* Net flow card */}
-      {income > 0 && (
-        <div style={{ ...S.card, marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <span style={S.label}>Net flow — {monthLabel(year, month)}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, color: '#166534' }}>+{fmt(totalIn)} in</span>
-                <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>vs</span>
-                <span style={{ fontSize: 13, color: '#c0392b' }}>{fmt(totalOut)} out</span>
-              </div>
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-head)', fontSize: 32, fontWeight: 700,
-              letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums',
-              color: netMonth >= 0 ? '#166534' : '#c0392b',
-            }}>
-              {netMonth >= 0 ? '+' : ''}{fmt(netMonth)}
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)' }}>
+        {/* Allocation strip — only if income is configured */}
+        {income > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 1, background: 'var(--line)', border: '1px solid var(--line)', borderRadius: 3, overflow: 'hidden' }}>
             {[
-              { label: 'Per day', value: netDay },
-              { label: 'Per week', value: netWeek },
-              { label: 'Per month', value: netMonth },
-              { label: 'Per year (proj.)', value: netYear },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ background: 'var(--bg)', padding: '14px 18px' }}>
+              { label: 'Gross income', value: income, color: 'var(--ink)' },
+              { label: `Tax ${settings.tax_pct}%`, value: tax, color: '#c0392b' },
+              { label: `Savings ${settings.savings_pct}%`, value: savings, color: '#2563EB' },
+              { label: 'Free to spend', value: spendable, color: '#166534' },
+              { label: 'Left to spend', value: pleasure, color: pleasure >= 0 ? '#166534' : '#c0392b' },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ background: 'var(--bg)', padding: '12px 16px' }}>
                 <span style={S.label}>{label}</span>
-                <div style={{
-                  fontFamily: 'var(--font-head)', fontSize: 18, fontWeight: 700,
-                  letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums',
-                  color: value >= 0 ? '#166534' : '#c0392b',
-                }}>
-                  {value >= 0 ? '+' : ''}{fmt(Math.abs(value))}
+                <div style={{ fontFamily: 'var(--font-head)', fontSize: 16, fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(value)}
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Pleasure money card */}
-      {income > 0 && (
-        <div style={{ ...S.card, marginBottom: 24, borderLeft: `3px solid ${pleasure >= 0 ? '#166534' : '#c0392b'}` }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <span style={{ ...S.label, color: pleasure >= 0 ? '#166534' : '#c0392b' }}>
-                {pleasure >= 0 ? 'Pleasure Money Left' : 'Over Budget'}
-              </span>
-              <div style={{ fontFamily: 'var(--font-head)', fontSize: 40, fontWeight: 700, letterSpacing: '-0.04em', color: pleasure >= 0 ? '#166534' : '#c0392b', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-                {pleasure < 0 ? '−' : ''}{fmt(Math.abs(pleasure))}
-              </div>
-              <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 6 }}>
-                Spent {fmt(totalSpent)} of {fmt(spendable)} spendable{extraIncome > 0 ? ` + ${fmt(extraIncome)} extra income` : ''}
-              </p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-              <div style={{ textAlign: 'right' }}>
-                <span style={S.label}>This week</span>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-head)', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(thisWeekSpent)}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={S.label}>Saved this month</span>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-head)', color: '#2563EB', fontVariantNumeric: 'tabular-nums' }}>{fmt(savings)}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={S.label}>Tax this month</span>
-                <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-head)', color: '#c0392b', fontVariantNumeric: 'tabular-nums' }}>{fmt(tax)}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Spending bar */}
-          <div style={{ marginTop: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink-3)', marginBottom: 6 }}>
-              <span>{Math.round(spentPct)}% spent</span>
-              <span>{fmt(spendable - totalSpent)} remaining</span>
-            </div>
-            <div style={{ height: 6, background: 'var(--line-strong)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${spentPct}%`, background: spentPct > 90 ? '#c0392b' : spentPct > 70 ? '#d97706' : '#166534', transition: 'width 0.8s ease', borderRadius: 3 }} />
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Daily spending chart */}
       {expenses.length > 0 && (
