@@ -297,7 +297,7 @@ export default function BudgetPage() {
 
   // ─── Calculations ─────────────────────────────────────────────────────────
 
-  const income = settings.monthly_income
+  const income = draftS.monthly_income
   const tax = income * (settings.tax_pct / 100)
   const savings = income * (settings.savings_pct / 100)
   const spendable = income - tax - savings
