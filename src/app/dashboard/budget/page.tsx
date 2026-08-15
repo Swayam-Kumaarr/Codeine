@@ -297,9 +297,11 @@ export default function BudgetPage() {
 
   // ─── Calculations ─────────────────────────────────────────────────────────
 
+  const draftS = settingsDraft ?? settings
+
   const income = draftS.monthly_income
-  const tax = income * (settings.tax_pct / 100)
-  const savings = income * (settings.savings_pct / 100)
+  const tax = income * (draftS.tax_pct / 100)
+  const savings = income * (draftS.savings_pct / 100)
   const spendable = income - tax - savings
 
   const expenses = transactions.filter(t => t.type === 'expense')
@@ -336,8 +338,6 @@ export default function BudgetPage() {
   const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay())
   weekStart.setHours(0, 0, 0, 0)
   const thisWeekSpent = expenses.filter(t => new Date(t.date) >= weekStart).reduce((s, t) => s + t.amount, 0)
-
-  const draftS = settingsDraft ?? settings
 
   if (loading) return <div style={{ padding: 40, color: 'var(--ink-3)', fontSize: 14 }}>Loading budget…</div>
 
